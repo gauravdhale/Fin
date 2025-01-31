@@ -1,8 +1,7 @@
-streamlit  
-pandas  
-numpy  
-yfinance  
-matplotlib  
-tensorflow  
-scikit-learn  
-google-api-python-client  
+yfinance
+numpy
+pandas
+plotly
+tensorflow
+scikit-learn
+streamlit
