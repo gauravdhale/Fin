@@ -1,114 +1,95 @@
-import yfinance as yf 
-import pandas as pd
-import numpy as np 
-import matplotlib.pyplot as plt
 import streamlit as st
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.svm import SVR
-from sklearn.ensemble import RandomForestRegressor, VotingRegressor
-from sklearn.metrics import mean_squared_error, r2_score
-from statsmodels.tsa.arima.model import ARIMA
-from datetime import datetime, timedelta
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import datetime
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from sklearn.preprocessing import MinMaxScaler
+import googleapiclient.discovery
 
-# Define Banking Stocks
-companies = {
-    'HDFC Bank': 'HDFCBANK.NS',
-    'ICICI Bank': 'ICICIBANK.NS',
-    'State Bank of India': 'SBIN.NS',
-    'Kotak Mahindra Bank': 'KOTAKBANK.NS',
-    'Axis Bank': 'AXISBANK.NS',
-    'Bank of Baroda': 'BANKBARODA.NS'
-}
-
-# Streamlit Sidebar
-st.sidebar.title("Banking Sector Stock Analysis")
-selected_stock = st.sidebar.selectbox("Select a Bank", list(companies.keys()))
-
-# Fetch Stock Data Function
-@st.cache_data
+# Function to fetch live stock data from Yahoo Finance
 def fetch_stock_data(ticker):
-    stock_data = yf.download(ticker, period="10y", interval="1d")
-    stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
-    stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
-    stock_data['Price_Change'] = stock_data['Close'].pct_change()
-    return stock_data.dropna()
+    end = datetime.datetime.today()
+    start = end - datetime.timedelta(days=5*365)
+    df = yf.download(ticker, start=start, end=end)
+    return df
 
-# Load Data
-stock_data = fetch_stock_data(companies[selected_stock])
+# Function to prepare data for LSTM model
+def prepare_data(df):
+    data = df['Close'].values.reshape(-1, 1)
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    data_scaled = scaler.fit_transform(data)
+    return data_scaled, scaler
 
-# Display Data
-st.subheader(f"Stock Price Data for {selected_stock}")
-st.dataframe(stock_data.tail())
+# Function to create dataset
+def create_dataset(data, time_step=60):
+    X, Y = [], []
+    for i in range(len(data) - time_step - 1):
+        X.append(data[i:(i + time_step), 0])
+        Y.append(data[i + time_step, 0])
+    return np.array(X), np.array(Y)
 
-# Stock Price Chart
-st.subheader(f"Stock Price Trend: {selected_stock}")
-fig, ax = plt.subplots(figsize=(12, 6))
-ax.plot(stock_data.index, stock_data['Close'], label="Close Price", color='blue')
-ax.plot(stock_data.index, stock_data['MA_20'], label="20-Day MA", linestyle='dashed', color='orange')
-ax.plot(stock_data.index, stock_data['MA_50'], label="50-Day MA", linestyle='dashed', color='green')
-ax.legend()
-st.pyplot(fig)
+# Function to build and train LSTM model
+def train_lstm(X_train, Y_train):
+    model = Sequential([
+        LSTM(50, return_sequences=True, input_shape=(X_train.shape[1], 1)),
+        Dropout(0.2),
+        LSTM(50, return_sequences=False),
+        Dropout(0.2),
+        Dense(25),
+        Dense(1)
+    ])
+    
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    model.fit(X_train, Y_train, epochs=20, batch_size=16, verbose=1)
+    return model
 
-# Train Machine Learning Models
-def train_model(data):
-    X = data[['Open', 'High', 'Low', 'MA_20', 'MA_50', 'Price_Change']]
-    y = data['Close']
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+# Function to make predictions
+def predict_stock(model, data, scaler, time_step=60):
+    X_test, _ = create_dataset(data, time_step)
+    X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
+    predictions = model.predict(X_test)
+    return scaler.inverse_transform(predictions)
 
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42)
+# Function to get buy/sell signals
+def buy_sell_decision(predictions):
+    signals = []
+    for i in range(1, len(predictions)):
+        if predictions[i] > predictions[i-1]:
+            signals.append("BUY")
+        else:
+            signals.append("SELL")
+    return signals
 
-    # Initialize Models
-    lr_model = LinearRegression()
-    svr_model = SVR(kernel='rbf', C=10, epsilon=0.1)
-    rf_model = RandomForestRegressor(n_estimators=100, max_depth=10)
+# Streamlit UI
+st.title("HDFC Bank Stock Prediction Dashboard")
 
-    # Train Models
-    lr_model.fit(X_train, y_train)
-    svr_model.fit(X_train, y_train)
-    rf_model.fit(X_train, y_train)
+# Fetch stock data
+ticker = "HDFCBANK.NS"
+data = fetch_stock_data(ticker)
+st.subheader("Stock Data")
+st.write(data.tail())
 
-    # Ensemble Voting Regressor
-    voting_model = VotingRegressor([('lr', lr_model), ('svr', svr_model), ('rf', rf_model)])
-    voting_model.fit(X_train, y_train)
+# Prepare data for prediction
+data_scaled, scaler = prepare_data(data)
+X, Y = create_dataset(data_scaled)
+X = X.reshape(X.shape[0], X.shape[1], 1)
 
-    y_pred = voting_model.predict(X_test)
-    return y_test, y_pred, voting_model
+# Train LSTM model
+st.subheader("Training LSTM Model...")
+model = train_lstm(X, Y)
 
-y_test, y_pred, model = train_model(stock_data)
+# Predict stock price
+st.subheader("Stock Price Prediction")
+predictions = predict_stock(model, data_scaled, scaler)
 
-# Display Model Performance
-st.subheader(f"Model Performance for {selected_stock}")
-st.write(f"Mean Squared Error: {np.round(mean_squared_error(y_test, y_pred), 2)}")
-st.write(f"R² Score: {np.round(r2_score(y_test, y_pred), 2)}")
+# Display prediction results
+st.line_chart(predictions)
 
-# Prediction vs Actual Chart
-st.subheader(f"Actual vs Predicted Prices for {selected_stock}")
-fig2, ax2 = plt.subplots(figsize=(12, 6))
-ax2.plot(y_test.index, y_test, label="Actual Price", color='blue')
-ax2.plot(y_test.index, y_pred, label="Predicted Price", linestyle='dashed', color='red')
-ax2.legend()
-st.pyplot(fig2)
-
-# ARIMA Forecasting Function
-def predict_future(data):
-    arima_model = ARIMA(data['Close'], order=(5, 1, 0))
-    arima_result = arima_model.fit()
-    future_dates = [data.index[-1] + timedelta(days=i) for i in range(1, 31)]
-    future_predictions = arima_result.forecast(steps=30)
-    return pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
-
-# Generate Future Predictions
-future_predictions = predict_future(stock_data)
-
-# Display Future Forecast
-st.subheader(f"Future Price Predictions for {selected_stock}")
-st.dataframe(future_predictions)
-fig3, ax3 = plt.subplots(figsize=(12, 6))
-ax3.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Future Price", color='purple')
-ax3.legend()
-st.pyplot(fig3)
-
-st.success("Analysis Completed!")
+# Generate buy/sell signals
+signals = buy_sell_decision(predictions)
+st.subheader("Buy/Sell Decision")
+st.write(signals[-5:])
