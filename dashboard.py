@@ -10,6 +10,7 @@ from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor, VotingRegressor
 from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime, timedelta
+from sklearn.metrics import mean_squared_error, r2_score
 
 # Define Banking Stocks
 companies = {
