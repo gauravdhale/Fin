@@ -52,6 +52,19 @@ def fetch_stock_data(ticker):
 stock_data = fetch_stock_data(companies[selected_stock])
 
 if not stock_data.empty:
+    # Display Today's Key Metrics
+     latest_data = stock_data.iloc[-1]
+     st.subheader(f"Today's Metrics for {selected_stock}")
+     with st.container():
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("Open Price", f"{latest_data['Open']:.2f}")
+        col2.metric("Close Price", f"{latest_data['Close']:.2f}")
+        col3.metric("Volume", f"{latest_data['Volume']:.0f}")
+        col4.metric("P/E Ratio", f"{stock_info.get('trailingPE', 'N/A')}")
+        col5.metric("IPO Price", f"{stock_info.get('open', 'N/A')}")
+
+
+    
     # Display Data & Chart
     st.subheader(f"Stock Price Data for {selected_stock}")
     st.dataframe(stock_data.tail())
