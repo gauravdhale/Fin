@@ -30,43 +30,29 @@ selected_stock = st.sidebar.selectbox("Select a Bank", list(companies.keys()))
 @st.cache_data
 def fetch_stock_data(ticker):
     stock_data = yf.download(ticker, period="10y", interval="1d")
-    stock_info = yf.Ticker(ticker).info
     
     if stock_data.empty:
         st.error(f"Error: No data found for {ticker}.")
-        return pd.DataFrame(), {}
+        return pd.DataFrame()
     
     st.write("Columns in fetched data:", stock_data.columns)
     
-    required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+    required_columns = ['Open', 'High', 'Low', 'Close']
     for col in required_columns:
         if col not in stock_data.columns:
             st.error(f"Error: Column '{col}' missing in {ticker} data.")
-            return pd.DataFrame(), {}
+            return pd.DataFrame()
     
     stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
     stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
     stock_data['Price_Change'] = stock_data['Close'].pct_change()
-    
-    return stock_data.dropna(), stock_info
+    return stock_data.dropna()
 
 # Load Data
-stock_data, stock_info = fetch_stock_data(companies[selected_stock])
+stock_data = fetch_stock_data(companies[selected_stock])
 
 if not stock_data.empty:
-    # Display Today's Key Metrics
-    latest_data = stock_data.iloc[-1]
-    st.subheader(f"Today's Metrics for {selected_stock}")
-    
-    with st.container():
-        col1, col2, col3, col4, col5 = st.columns(5)
-        col1.metric("Open Price", f"{latest_data['Open']:.2f}")
-        col2.metric("Close Price", f"{latest_data['Close']:.2f}")
-        col3.metric("Volume", f"{latest_data['Volume']:.0f}")
-        col4.metric("P/E Ratio", f"{stock_info.get('trailingPE', 'N/A')}")
-        col5.metric("IPO Price", f"{stock_info.get('open', 'N/A')}")
-    
-    # Display Data & Chart
+  # Display Data & Chart
     st.subheader(f"Stock Price Data for {selected_stock}")
     st.dataframe(stock_data.tail())
     
@@ -135,4 +121,3 @@ if not stock_data.empty:
     st.pyplot(fig3)
     
     st.success("Analysis Completed!")
-
