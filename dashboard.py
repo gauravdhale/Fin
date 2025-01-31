@@ -32,9 +32,19 @@ selected_stock = st.sidebar.selectbox("Select a Company", list(companies.keys())
 @st.cache_data
 def fetch_stock_data(ticker):
     stock_data = yf.download(ticker, period="10y", interval="1d")
+
+    # Check if the required columns exist
+    required_columns = ['Open', 'High', 'Low', 'Close']
+    for col in required_columns:
+        if col not in stock_data.columns:
+            st.error(f"Error: Column '{col}' missing in {ticker} data.")
+            return pd.DataFrame()  # Return an empty DataFrame to avoid crashes
+
+    # Add Moving Averages and Price Change
     stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
     stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
     stock_data['Price_Change'] = stock_data['Close'].pct_change()
+
     return stock_data.dropna()
 
 # Load Data
