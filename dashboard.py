@@ -23,13 +23,14 @@ companies = {
 }
 
 # Streamlit Sidebar
-st.sidebar.title("Banking Sector Stock Analysis")
-selected_stock = st.sidebar.selectbox("Select a Bank", list(companies.keys()))
+st.set_page_config(layout="wide")
+st.sidebar.title("📊 AI Banking Sector Stock Dashboard")
+selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
 def fetch_stock_data(ticker):
     stock_data = yf.download(ticker, period="10y", interval="1d")
     if stock_data.empty:
-        st.error(f"Error: No data found for {ticker}.")
+        st.error(f"⚠️ Error: No data found for {ticker}.")
         return pd.DataFrame()
     stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
     stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
@@ -40,12 +41,12 @@ def fetch_live_data(ticker):
     stock = yf.Ticker(ticker)
     info = stock.info
     return {
-        "Current Price": info.get("currentPrice", "N/A"),
-        "Open": info.get("open", "N/A"),
-        "Close": info.get("previousClose", "N/A"),
-        "P/E Ratio": info.get("trailingPE", "N/A"),
-        "Volume": info.get("volume", "N/A"),
-        "IPO Price": info.get("regularMarketPreviousClose", "N/A")
+        "Current Price": f"{info.get('currentPrice', 0):.4f}",
+        "Open": f"{info.get('open', 0):.4f}",
+        "Close": f"{info.get('previousClose', 0):.4f}",
+        "P/E Ratio": f"{info.get('trailingPE', 0):.4f}",
+        "Volume": f"{info.get('volume', 0):,.4f}",
+        "IPO Price": f"{info.get('regularMarketPreviousClose', 0):.4f}"
     }
 
 # Fetch Data
@@ -53,15 +54,16 @@ stock_data = fetch_stock_data(companies[selected_stock])
 live_data = fetch_live_data(companies[selected_stock])
 
 if not stock_data.empty:
+    st.markdown("## 📈 Stock Market Overview")
     col1, col2, col3, col4, col5, col6 = st.columns(6)
-    col1.metric("Open Price", live_data["Open"])
-    col2.metric("Close Price", live_data["Close"])
-    col3.metric("Current Price", live_data["Current Price"])
-    col4.metric("P/E Ratio", live_data["P/E Ratio"])
-    col5.metric("Volume", live_data["Volume"])
-    col6.metric("IPO Price", live_data["IPO Price"])
+    col1.metric("📌 Open Price", live_data["Open"])
+    col2.metric("💰 Close Price", live_data["Close"])
+    col3.metric("📊 Current Price", live_data["Current Price"])
+    col4.metric("📉 P/E Ratio", live_data["P/E Ratio"])
+    col5.metric("📊 Volume", live_data["Volume"])
+    col6.metric("🚀 IPO Price", live_data["IPO Price"])
     
-    st.subheader(f"Stock Price Trend: {selected_stock}")
+    st.subheader(f"📈 Stock Price Trend: {selected_stock}")
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.plot(stock_data.index, stock_data['Close'], label="Close Price", color='blue')
     ax.plot(stock_data.index, stock_data['MA_20'], label="20-Day MA", linestyle='dashed', color='orange')
@@ -90,9 +92,9 @@ if not stock_data.empty:
     
     y_test, y_pred = train_model(stock_data)
     
-    st.subheader(f"Model Performance for {selected_stock}")
-    st.write(f"Mean Squared Error: {np.round(mean_squared_error(y_test, y_pred), 2)}")
-    st.write(f"R² Score: {np.round(r2_score(y_test, y_pred), 2)}")
+    st.subheader(f"📊 Model Performance for {selected_stock}")
+    st.write(f"**Mean Squared Error:** {np.round(mean_squared_error(y_test, y_pred), 4)}")
+    st.write(f"**R² Score:** {np.round(r2_score(y_test, y_pred), 4)}")
     
     fig2, ax2 = plt.subplots(figsize=(12, 6))
     ax2.plot(y_test.index, y_test, label="Actual Price", color='blue')
@@ -108,11 +110,11 @@ if not stock_data.empty:
         return pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
     
     future_predictions = predict_future(stock_data)
-    st.subheader(f"Future Price Predictions for {selected_stock}")
+    st.subheader(f"🚀 Future Price Predictions for {selected_stock}")
     st.dataframe(future_predictions)
     fig3, ax3 = plt.subplots(figsize=(12, 6))
     ax3.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Future Price", color='purple')
     ax3.legend()
     st.pyplot(fig3)
     
-    st.success("Analysis Completed!")
+    st.success("🎯 Analysis Completed!")
