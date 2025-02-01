@@ -21,19 +21,23 @@ st.set_page_config(layout="wide")
 st.sidebar.title("📊 AI Banking Sector Stock Dashboard")
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
+# Function to fetch stock data
 def fetch_stock_data(ticker):
     stock_data = yf.download(ticker, period="10y", interval="1d")
     if stock_data.empty:
         st.error(f"⚠️ Error: No data found for {ticker}.")
         return pd.DataFrame()
+    
     stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
     stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
     stock_data['Price_Change'] = stock_data['Close'].pct_change()
     return stock_data.dropna()
 
+# Function to fetch live stock information
 def fetch_live_data(ticker):
     stock = yf.Ticker(ticker)
     info = stock.info
+    
     return {
         "Current Price": f"{info.get('currentPrice', 0):.2f}",
         "Open": f"{info.get('open', 0):.2f}",
@@ -50,6 +54,8 @@ live_data = fetch_live_data(companies[selected_stock])
 
 if not stock_data.empty:
     st.markdown("## 📈 Stock Market Overview")
+    
+    # Display key financial metrics
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     col1.metric("📌 Open Price", live_data["Open"])
     col2.metric("💰 Close Price", live_data["Close"])
@@ -60,6 +66,7 @@ if not stock_data.empty:
 
     col7, col8 = st.columns([2, 1])
     
+    # Stock Price Trend Chart
     with col7:
         st.subheader(f"📈 Stock Price Trend: {selected_stock}")
         fig, ax = plt.subplots(figsize=(10, 4))
@@ -69,6 +76,7 @@ if not stock_data.empty:
         ax.legend()
         st.pyplot(fig)
     
+    # Heatmap & EPS Display
     with col8:
         st.subheader("📊 EPS & Correlation")
         st.metric("📈 EPS", live_data["EPS"])
@@ -79,7 +87,7 @@ if not stock_data.empty:
         sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax2)
         st.pyplot(fig2)
     
-    # Pie Chart for Market Share
+    # Market Share Pie Chart
     st.subheader("📊 Market Share Distribution")
     pie_col1, pie_col2 = st.columns([1, 3])
     with pie_col1:
@@ -95,19 +103,31 @@ if not stock_data.empty:
     st.subheader("🚀 Future Price Predictions")
     col9, col10, col11 = st.columns(3)
 
+    # ARIMA Prediction Function with Fixes
     def predict_future(data, days):
-        if len(data) < 50:
+        if len(data) < 50:  # Ensure enough data points for ARIMA model
             return np.nan
-        arima_model = ARIMA(data['Close'], order=(5, 1, 0))
-        arima_result = arima_model.fit()
-        future_predictions = arima_result.forecast(steps=days)
-        return future_predictions[-1] if len(future_predictions) > 0 else np.nan
+        
+        try:
+            arima_model = ARIMA(data['Close'], order=(5, 1, 0))
+            arima_result = arima_model.fit()
+            future_predictions = arima_result.forecast(steps=days)
+            
+            if not future_predictions.empty:
+                return future_predictions.iloc[-1]  # Use .iloc[-1] instead of direct indexing
+            else:
+                return np.nan
+        except Exception as e:
+            st.error(f"Prediction Error: {e}")  # Display error in Streamlit instead of crashing
+            return np.nan
 
+    # Function to calculate error percentage
     def calculate_error(predicted, actual):
         if np.isnan(predicted) or np.isnan(actual):
             return np.nan
         return ((predicted - actual) / actual) * 100
 
+    # Get Predictions
     one_day_pred = predict_future(stock_data, 1)
     one_week_pred = predict_future(stock_data, 7)
     actual_close = stock_data['Close'].iloc[-1]
@@ -115,8 +135,10 @@ if not stock_data.empty:
     error_1day = calculate_error(one_day_pred, actual_close)
     error_1week = calculate_error(one_week_pred, actual_close)
     
-    col9.metric("1-Day Prediction", f"{one_day_pred:.2f}" if not np.isnan(one_day_pred) else "Unavailable", delta=f"{error_1day:.2f}%" if not np.isnan(error_1day) else "0.00%")
-    col10.metric("1-Week Prediction", f"{one_week_pred:.2f}" if not np.isnan(one_week_pred) else "Unavailable", delta=f"{error_1week:.2f}%" if not np.isnan(error_1week) else "0.00%")
+    col9.metric("1-Day Prediction", f"{one_day_pred:.2f}" if not np.isnan(one_day_pred) else "Unavailable", 
+                delta=f"{error_1day:.2f}%" if not np.isnan(error_1day) else "0.00%")
+    col10.metric("1-Week Prediction", f"{one_week_pred:.2f}" if not np.isnan(one_week_pred) else "Unavailable", 
+                 delta=f"{error_1week:.2f}%" if not np.isnan(error_1week) else "0.00%")
     col11.metric("Error Percentage", f"{error_1day:.2f}%" if not np.isnan(error_1day) else "0.00%")
 
     st.success("🎯 Analysis Completed!")
