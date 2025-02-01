@@ -8,3 +8,4 @@ scikit-learn
 google-api-python-client 
 plotly
 statsmodels
+seaborn
