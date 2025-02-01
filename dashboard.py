@@ -104,7 +104,7 @@ if not stock_data.empty:
             return np.nan  # Return NaN in case of errors
 
     def calculate_error(predicted, actual):
-        return ((predicted - actual) / actual * 100) if actual and predicted else np.nan
+        return ((predicted - actual) / actual * 100) if not np.isnan(actual) and not np.isnan(predicted) else np.nan
 
     # 1-Day Prediction
     one_day_pred = predict_future(stock_data, 1)
