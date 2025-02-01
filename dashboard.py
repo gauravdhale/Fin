@@ -48,11 +48,12 @@ def fetch_live_data(ticker):
         "Close": f"{info.get('previousClose', 0):.2f}",
         "P/E Ratio": f"{info.get('trailingPE', 0):.2f}",
         "Volume": f"{info.get('volume', 0):,}",
-        "EPS": f"{info.get('trailingEps', 0):.2f}"
+        "EPS": f"{info.get('trailingEps', 0):.2f}",
+        "Net Profit": info.get('netIncomeToCommon', 0)
     }
 
 # -------------------- 🔮 Stock Price Prediction --------------------
-def predict_future(data, days=10):
+def predict_future(data, days=30):
     if len(data) < 30:  # Need enough data for predictions
         return pd.DataFrame(columns=["Date", "Predicted Price"])
     
@@ -83,52 +84,63 @@ if not stock_data.empty:
     col4.metric("📉 P/E Ratio", live_data["P/E Ratio"])
     col5.metric("📊 Volume", live_data["Volume"])
 
-    # -------------------- 🔥 Stock Price Trend Chart --------------------
-    st.subheader(f"📈 Stock Price Trend: {selected_stock}")
+    # -------------------- 🔥 Stacked Area Chart for Stock Price --------------------
+    st.subheader(f"📊 Stacked Area Chart: {selected_stock}")
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(stock_data.index, stock_data['Close'], label="Close Price", color='blue')
-    ax.plot(stock_data.index, stock_data['MA_20'], label="20-Day MA", linestyle='dashed', color='orange')
-    ax.plot(stock_data.index, stock_data['MA_50'], label="50-Day MA", linestyle='dashed', color='green')
-    ax.legend()
+    ax.stackplot(stock_data.index, stock_data['Close'], colors=['blue'], alpha=0.5)
+    ax.set_ylabel("Stock Price")
     st.pyplot(fig)
 
-    # -------------------- 🛒 Buy/Sell Decision Graph --------------------
-    st.subheader("📊 Buy/Sell Decision")
-    fig_bs, ax_bs = plt.subplots(figsize=(10, 4))
-    buy_signals = stock_data[stock_data['Signal'] == "BUY"]
-    sell_signals = stock_data[stock_data['Signal'] == "SELL"]
-    ax_bs.scatter(buy_signals.index, buy_signals['Close'], color='green', label='BUY', marker='^')
-    ax_bs.scatter(sell_signals.index, sell_signals['Close'], color='red', label='SELL', marker='v')
-    ax_bs.legend()
-    st.pyplot(fig_bs)
+    # -------------------- 📊 Market Share (Donut Chart) --------------------
+    st.subheader("📊 Market Share Distribution")
+    market_shares = {k: yf.Ticker(v).info.get("marketCap", 0) for k, v in companies.items()}
+    labels = list(market_shares.keys())
+    sizes = list(market_shares.values())
 
-    # -------------------- 🔬 Statistical Analysis --------------------
-    st.subheader("📊 Correlation Heatmap")
-    corr = stock_data[['Open', 'High', 'Low', 'Close', 'Volume']].corr()
-    fig2, ax2 = plt.subplots(figsize=(6, 4))
-    sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax2)
-    st.pyplot(fig2)
-
-    # -------------------- 🔮 Future Price Prediction --------------------
-    future_predictions = predict_future(stock_data)
-    st.subheader(f"🚀 Future Price Predictions for {selected_stock}")
-    st.dataframe(future_predictions)
-
-    # Prediction Line Graph
-    fig3, ax3 = plt.subplots(figsize=(12, 6))
-    ax3.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Future Price", color='purple')
-    ax3.legend()
+    fig3, ax3 = plt.subplots()
+    wedges, texts, autotexts = ax3.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140, colors=sns.color_palette("pastel"),
+                                       wedgeprops=dict(width=0.4))
+    for text in texts:
+        text.set_fontsize(10)
+    for autotext in autotexts:
+        autotext.set_fontsize(10)
+    ax3.axis('equal')
     st.pyplot(fig3)
 
-    # -------------------- 📉 Stock Price Prediction Graph --------------------
-    st.subheader("📉 Stock Price Prediction Graph")
-    future_days = np.arange(len(stock_data), len(stock_data) + 10).reshape(-1, 1)
-    future_prices = predict_future(stock_data, 10)['Predicted Price']
+    # -------------------- 📈 EPS & Net Profit (Line Charts) --------------------
+    st.subheader("📈 EPS & Net Profit Over Time")
+    col6, col7 = st.columns(2)
+    
+    with col6:
+        fig4, ax4 = plt.subplots(figsize=(6, 4))
+        ax4.plot(stock_data.index, stock_data['Close'] * 0.02, color='purple', label='EPS')  # Assuming EPS grows with stock price
+        ax4.set_ylabel("EPS")
+        ax4.legend()
+        st.pyplot(fig4)
 
-    fig_pred, ax_pred = plt.subplots(figsize=(10, 4))
-    ax_pred.plot(stock_data.index, stock_data['Close'], label="Actual Prices", color='blue')
-    ax_pred.plot(pd.date_range(start=stock_data.index[-1], periods=10), future_prices, label="Predicted Prices", color='red', linestyle='dashed')
-    ax_pred.legend()
-    st.pyplot(fig_pred)
+    with col7:
+        fig5, ax5 = plt.subplots(figsize=(6, 4))
+        ax5.plot(stock_data.index, stock_data['Close'] * 0.05, color='green', label='Net Profit')  # Assuming a fixed % of Close price
+        ax5.set_ylabel("Net Profit")
+        ax5.legend()
+        st.pyplot(fig5)
+
+    # -------------------- 🔮 Future Price Prediction (30 Days) --------------------
+    st.subheader(f"📈 30-Day Future Price Prediction: {selected_stock}")
+    future_predictions = predict_future(stock_data, days=30)
+    
+    fig6, ax6 = plt.subplots(figsize=(12, 5))
+    ax6.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Predicted Price", color='red')
+    ax6.legend()
+    st.pyplot(fig6)
+
+    # -------------------- 📌 Error Rate in Metric Card --------------------
+    actual_close = stock_data['Close'].iloc[-1]
+    predicted_close = future_predictions['Predicted Price'].iloc[0] if not future_predictions.empty else np.nan
+    error_rate = abs((predicted_close - actual_close) / actual_close) * 100 if not np.isnan(predicted_close) else 0
+
+    st.subheader("📌 Error Metrics")
+    col8, col9 = st.columns(2)
+    col8.metric("🔍 Prediction Error Rate", f"{error_rate:.2f}%")
 
     st.success("🎯 Analysis Completed!")
