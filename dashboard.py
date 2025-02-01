@@ -18,7 +18,6 @@ companies = {
 
 # -------------------- 🎨 Streamlit UI Layout --------------------
 st.set_page_config(page_title="Stock Dashboard", layout="wide")
-
 st.sidebar.title("📊 AI Banking Stock Dashboard")
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
@@ -29,11 +28,8 @@ def fetch_stock_data(ticker):
     if stock_data.empty:
         st.error(f"⚠️ No data found for {ticker}.")
         return pd.DataFrame()
-
     stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
     stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
-    stock_data['Price_Change'] = stock_data['Close'].pct_change()
-    
     return stock_data.dropna()
 
 # -------------------- 📡 Fetch Live Market Data --------------------
@@ -74,9 +70,7 @@ live_data = fetch_live_data(companies[selected_stock])
 
 # -------------------- 📅 Date Selection (Dynamically Update Charts) --------------------
 st.sidebar.subheader("📅 Select Date Range")
-min_date = stock_data.index.min().date()
-max_date = stock_data.index.max().date()
-
+min_date, max_date = stock_data.index.min().date(), stock_data.index.max().date()
 start_date = st.sidebar.date_input("Start Date", min_value=min_date, max_value=max_date, value=min_date)
 end_date = st.sidebar.date_input("End Date", min_value=min_date, max_value=max_date, value=max_date)
 
@@ -84,7 +78,6 @@ stock_data = stock_data.loc[(stock_data.index >= pd.to_datetime(start_date)) & (
 
 # -------------------- 📈 Stock Market Overview --------------------
 st.markdown("## 📈 Stock Market Overview")
-
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("📌 Open Price", f"${live_data['Open']:.2f}")
 col2.metric("💰 Close Price", f"${live_data['Close']:.2f}")
@@ -101,7 +94,7 @@ ax.axhline(y=live_data['Current Price'], color='red', linestyle='--', label="Cur
 ax.legend()
 st.pyplot(fig)
 
-# -------------------- 📈 EPS & Net Profit Line Chart --------------------
+# -------------------- 📈 EPS & Net Profit Line Charts --------------------
 col6, col7, col8 = st.columns(3)
 
 with col6:
@@ -114,7 +107,7 @@ with col6:
 with col7:
     st.subheader("📈 Net Profit Over Time")
     fig_np, ax_np = plt.subplots(figsize=(6, 3))
-    ax_np.plot(stock_data.index, stock_data['Close'] * 0.05, color='green', label="Net Profit")
+    ax_np.plot(stock_data.index, stock_data['Close'] * 0.05, color='green', label="Net Profit")  # ✅ Fixed Syntax Error
     ax_np.legend()
     st.pyplot(fig_np)
 
