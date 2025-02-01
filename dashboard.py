@@ -5,8 +5,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor, VotingRegressor
 from statsmodels.tsa.arima.model import ARIMA
-from datetime import timedelta
+from datetime import datetime, timedelta
+from sklearn.metrics import mean_squared_error, r2_score
 
 # Define Banking Stocks
 companies = {
@@ -37,13 +42,13 @@ def fetch_live_data(ticker):
     stock = yf.Ticker(ticker)
     info = stock.info
     return {
-        "Current Price": f"{info.get('currentPrice', 0):.2f}",
-        "Open": f"{info.get('open', 0):.2f}",
-        "Close": f"{info.get('previousClose', 0):.2f}",
-        "P/E Ratio": f"{info.get('trailingPE', 0):.2f}",
-        "Volume": f"{info.get('volume', 0):,.0f}",
-        "IPO Price": f"{info.get('regularMarketPreviousClose', 0):.2f}",
-        "EPS": f"{info.get('trailingEps', 0):.2f}"
+        "Current Price": f"{info.get('currentPrice', 0):.4f}",
+        "Open": f"{info.get('open', 0):.4f}",
+        "Close": f"{info.get('previousClose', 0):.4f}",
+        "P/E Ratio": f"{info.get('trailingPE', 0):.4f}",
+        "Volume": f"{info.get('volume', 0):,.4f}",
+        "IPO Price": f"{info.get('regularMarketPreviousClose', 0):.4f}",
+        "EPS": f"{info.get('trailingEps', 0):.4f}"
     }
 
 # Fetch Data
@@ -51,6 +56,7 @@ stock_data = fetch_stock_data(companies[selected_stock])
 live_data = fetch_live_data(companies[selected_stock])
 
 if not stock_data.empty:
+    # Layout for Metrics
     st.markdown("## 📈 Stock Market Overview")
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     col1.metric("📌 Open Price", live_data["Open"])
@@ -60,7 +66,9 @@ if not stock_data.empty:
     col5.metric("📊 Volume", live_data["Volume"])
     col6.metric("🚀 IPO Price", live_data["IPO Price"])
 
+    # Layout for Charts and Predictions
     col7, col8 = st.columns([2, 1])
+
     with col7:
         st.subheader(f"📈 Stock Price Trend: {selected_stock}")
         fig, ax = plt.subplots(figsize=(10, 4))
@@ -73,11 +81,14 @@ if not stock_data.empty:
     with col8:
         st.subheader("📊 EPS & Heatmap")
         st.metric("📈 EPS", live_data["EPS"])
+
+        # Heatmap
         corr = stock_data[['Open', 'High', 'Low', 'Close', 'Volume']].corr()
         fig2, ax2 = plt.subplots(figsize=(6, 4))
         sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax2)
         st.pyplot(fig2)
 
+    # Predictions
     st.subheader("🚀 Future Price Predictions")
     col9, col10, col11 = st.columns(3)
 
@@ -86,37 +97,24 @@ if not stock_data.empty:
             arima_model = ARIMA(data['Close'], order=(5, 1, 0))
             arima_result = arima_model.fit()
             future_predictions = arima_result.forecast(steps=days)
-            return future_predictions[-1] if len(future_predictions) > 0 else None
-        except Exception as e:
-            st.error(f"Prediction error: {e}")
+            return future_predictions[-1]
+        except:
             return None
 
     def calculate_error(predicted, actual):
-        if predicted is None or np.isnan(predicted) or actual is None or np.isnan(actual):
-            return None
-        return (predicted - actual) / actual * 100
+        return (predicted - actual) / actual * 100 if actual != 0 else None
 
     # 1-Day Prediction
     one_day_pred = predict_future(stock_data, 1)
-    last_close = stock_data['Close'].iloc[-1] if not stock_data.empty else None
-    error_1day = calculate_error(one_day_pred, last_close)
-    col9.metric("1-Day Prediction", f"{one_day_pred:.2f}" if one_day_pred is not None else "N/A", 
-                delta=f"{error_1day:.2f}%" if error_1day is not None else "N/A")
+    error_1day = calculate_error(one_day_pred, stock_data['Close'].iloc[-1]) if one_day_pred is not None else None
+    col9.metric("1-Day Prediction", f"{one_day_pred:.2f}" if one_day_pred is not None else "Unavailable", delta=f"{error_1day:.2f}%" if error_1day is not None else "N/A")
 
     # 1-Week Prediction
     one_week_pred = predict_future(stock_data, 7)
-    error_1week = calculate_error(one_week_pred, last_close)
-    col10.metric("1-Week Prediction", f"{one_week_pred:.2f}" if one_week_pred is not None else "N/A", 
-                 delta=f"{error_1week:.2f}%" if error_1week is not None else "N/A")
+    error_1week = calculate_error(one_week_pred, stock_data['Close'].iloc[-1]) if one_week_pred is not None else None
+    col10.metric("1-Week Prediction", f"{one_week_pred:.2f}" if one_week_pred is not None else "Unavailable", delta=f"{error_1week:.2f}%" if error_1week is not None else "N/A")
 
+    # Error Percentage
     col11.metric("Error Percentage", f"{error_1day:.2f}%" if error_1day is not None else "N/A")
-
-    st.subheader("📊 Price Change Distribution")
-    price_change_bins = pd.cut(stock_data['Price_Change'], bins=[-np.inf, -0.05, 0, 0.05, np.inf],
-                               labels=['<-5%', '-5% to 0%', '0% to 5%', '>5%'])
-    price_change_dist = price_change_bins.value_counts(normalize=True) * 100
-    fig3, ax3 = plt.subplots(figsize=(6, 6))
-    ax3.pie(price_change_dist, labels=price_change_dist.index, autopct='%1.1f%%', colors=['red', 'orange', 'green', 'blue'])
-    st.pyplot(fig3)
 
     st.success("🎯 Analysis Completed!")
