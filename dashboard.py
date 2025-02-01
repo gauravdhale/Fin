@@ -17,36 +17,17 @@ companies = {
 }
 
 # -------------------- 🎨 Streamlit UI Layout --------------------
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Stock Dashboard", layout="wide")
 
-# Custom Background Styling (Banking Theme)
-page_bg = """
-    <style>
-        body {
-            background-color: #F0F2F6;  /* Light Banking Background */
-            color: #1E3A5F;  /* Dark Blue Text */
-        }
-        .stApp {
-            background-color: #F0F2F6;
-        }
-        .stMetric {
-            background-color: #E6E8EB;
-            border-radius: 10px;
-            padding: 10px;
-            text-align: center;
-        }
-    </style>
-"""
-st.markdown(page_bg, unsafe_allow_html=True)
-
-st.sidebar.title("📊 AI Banking Sector Stock Dashboard")
+st.sidebar.title("📊 AI Banking Stock Dashboard")
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
-# -------------------- 📥 Fetch 5 Years of Stock Data --------------------
+# -------------------- 📥 Fetch Stock Data --------------------
+@st.cache_data
 def fetch_stock_data(ticker):
     stock_data = yf.download(ticker, period="5y", interval="1d")
     if stock_data.empty:
-        st.error(f"⚠️ Error: No data found for {ticker}.")
+        st.error(f"⚠️ No data found for {ticker}.")
         return pd.DataFrame()
 
     stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
@@ -59,6 +40,7 @@ def fetch_stock_data(ticker):
     return stock_data.dropna()
 
 # -------------------- 📡 Fetch Live Market Data --------------------
+@st.cache_data
 def fetch_live_data(ticker):
     stock = yf.Ticker(ticker)
     info = stock.info
@@ -72,9 +54,9 @@ def fetch_live_data(ticker):
         "Net Profit": float(info.get('netIncomeToCommon', 0))
     }
 
-# -------------------- 🔮 Stock Price Prediction (Fixed Error) --------------------
+# -------------------- 🔮 Stock Price Prediction --------------------
 def predict_future(data, days=30):
-    if len(data) < 30:  # Need enough data for predictions
+    if len(data) < 30:
         return pd.DataFrame(columns=["Date", "Predicted Price"])
     
     data['Days'] = np.arange(len(data)).reshape(-1, 1)
@@ -93,61 +75,68 @@ def predict_future(data, days=30):
 stock_data = fetch_stock_data(companies[selected_stock])
 live_data = fetch_live_data(companies[selected_stock])
 
+# -------------------- 📅 Date Selection (Dynamically Update Charts) --------------------
+st.sidebar.subheader("📅 Select Date Range")
+min_date = stock_data.index.min().date()
+max_date = stock_data.index.max().date()
+
+start_date = st.sidebar.date_input("Start Date", min_value=min_date, max_value=max_date, value=min_date)
+end_date = st.sidebar.date_input("End Date", min_value=min_date, max_value=max_date, value=max_date)
+
+stock_data = stock_data.loc[(stock_data.index >= pd.to_datetime(start_date)) & (stock_data.index <= pd.to_datetime(end_date))]
+
 # -------------------- 📈 Stock Market Overview --------------------
-if not stock_data.empty:
-    st.markdown("## 📈 Stock Market Overview")
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    col1.metric("📌 Open Price", f"${live_data['Open']:.2f}")
-    col2.metric("💰 Close Price", f"${live_data['Close']:.2f}")
-    col3.metric("📊 Current Price", f"${live_data['Current Price']:.2f}")
-    col4.metric("📉 P/E Ratio", f"{live_data['P/E Ratio']:.2f}")
-    col5.metric("📊 Volume", f"{live_data['Volume']:,}")
+st.markdown("## 📈 Stock Market Overview")
 
-    # -------------------- 📉 Line Chart for Stock Price --------------------
-    st.subheader(f"📊 Stock Price Trend: {selected_stock}")
-    fig, ax = plt.subplots(figsize=(5, 3))
-    ax.plot(stock_data.index, stock_data['Close'], label="Close Price", color='blue')
-    ax.set_ylabel("Stock Price")
-    ax.legend()
-    st.pyplot(fig)
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("📌 Open Price", f"${live_data['Open']:.2f}")
+col2.metric("💰 Close Price", f"${live_data['Close']:.2f}")
+col3.metric("📊 Current Price", f"${live_data['Current Price']:.2f}")
+col4.metric("📉 P/E Ratio", f"{live_data['P/E Ratio']:.2f}")
+col5.metric("📊 Volume", f"{live_data['Volume']:,}")
 
-    # -------------------- 📈 EPS & Net Profit Line Chart --------------------
-    col6, col7, col8 = st.columns(3)
+# -------------------- 📉 Stock Price Chart (Open, Close, Current) --------------------
+st.subheader(f"📊 Stock Price Trend: {selected_stock}")
+fig, ax = plt.subplots(figsize=(6, 3))
+ax.plot(stock_data.index, stock_data['Open'], label="Open Price", color='green')
+ax.plot(stock_data.index, stock_data['Close'], label="Close Price", color='blue')
+ax.axhline(y=live_data['Current Price'], color='red', linestyle='--', label="Current Price")
+ax.legend()
+st.pyplot(fig)
 
-    with col6:
-        st.subheader("📈 EPS Over Time")
-        fig_eps, ax_eps = plt.subplots(figsize=(5, 3))
-        ax_eps.plot(stock_data.index, stock_data['Close'] * 0.02, color='purple', label='EPS')
-        ax_eps.set_ylabel("EPS")
-        ax_eps.legend()
-        st.pyplot(fig_eps)
+# -------------------- 📈 EPS & Net Profit Line Chart --------------------
+col6, col7, col8 = st.columns(3)
 
-    with col7:
-        st.subheader("📈 Net Profit Over Time")
-        fig_np, ax_np = plt.subplots(figsize=(5, 3))
-        ax_np.plot(stock_data.index, stock_data['Close'] * 0.05, color='green', label='Net Profit')
-        ax_np.set_ylabel("Net Profit")
-        ax_np.legend()
-        st.pyplot(fig_np)
+with col6:
+    st.subheader("📈 EPS Over Time")
+    fig_eps, ax_eps = plt.subplots(figsize=(6, 3))
+    ax_eps.plot(stock_data.index, stock_data['Close'] * 0.02, color='purple', label='EPS')
+    ax_eps.legend()
+    st.pyplot(fig_eps)
 
-    # -------------------- 🔮 30-Day Future Price Prediction --------------------
-    st.subheader("📈 30-Day Price Prediction")
-    future_predictions = predict_future(stock_data, days=30)
+with col7:
+    st.subheader("📈 Net Profit Over Time")
+    fig_np, ax_np = plt.subplots(figsize=(6, 3))
+    ax_np.plot(stock_data.index, stock_data['Close'] * 0.05, color='green', label='Net Profit")
+    ax_np.legend()
+    st.pyplot(fig_np)
 
-    fig_pred, ax_pred = plt.subplots(figsize=(5, 3))
-    ax_pred.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Predicted Price", color='red')
-    ax_pred.set_ylabel("Predicted Price")
-    ax_pred.legend()
-    st.pyplot(fig_pred)
+# -------------------- 🔮 30-Day Future Price Prediction --------------------
+st.subheader("📈 30-Day Price Prediction")
+future_predictions = predict_future(stock_data, days=30)
 
-    # -------------------- 📌 Error Rate in Metric Card --------------------
-    actual_close = stock_data['Close'].iloc[-1]
-    predicted_close = future_predictions['Predicted Price'].iloc[0] if not future_predictions.empty else np.nan
-    error_rate = abs((predicted_close - actual_close) / actual_close) * 100 if not np.isnan(predicted_close) else 0
+fig_pred, ax_pred = plt.subplots(figsize=(6, 3))
+ax_pred.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Predicted Price", color='red')
+ax_pred.legend()
+st.pyplot(fig_pred)
 
-    st.subheader("📌 Error Metrics")
-    col9, col10 = st.columns(2)
-    col9.metric("🔍 Prediction Error Rate", f"{error_rate:.2f}%")
+# -------------------- 📌 Error Rate in Metric Card --------------------
+actual_close = stock_data['Close'].iloc[-1]
+predicted_close = future_predictions['Predicted Price'].iloc[0] if not future_predictions.empty else np.nan
+error_rate = abs((predicted_close - actual_close) / actual_close) * 100 if not np.isnan(predicted_close) else 0
 
-    st.success("🎯 Analysis Completed!")
+st.subheader("📌 Error Metrics")
+col9, col10 = st.columns(2)
+col9.metric("🔍 Prediction Error Rate", f"{error_rate:.2f}%")
+
+st.success("🎯 Analysis Completed!")
