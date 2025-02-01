@@ -95,29 +95,28 @@ if not stock_data.empty:
     def predict_future(data, days):
         try:
             if len(data) < 50:
-                return None  # Not enough data for ARIMA
+                return np.nan  # Return NaN if insufficient data
             arima_model = ARIMA(data['Close'], order=(5, 1, 0))
             arima_result = arima_model.fit()
             future_predictions = arima_result.forecast(steps=days)
-            return future_predictions[-1] if len(future_predictions) > 0 else None
-        except Exception as e:
-            st.error(f"Prediction error: {str(e)}")
-            return None
+            return future_predictions[-1] if len(future_predictions) > 0 else np.nan
+        except Exception:
+            return np.nan  # Return NaN in case of errors
 
     def calculate_error(predicted, actual):
-        return (predicted - actual) / actual * 100 if actual and predicted else None
+        return ((predicted - actual) / actual * 100) if actual and predicted else np.nan
 
     # 1-Day Prediction
     one_day_pred = predict_future(stock_data, 1)
-    error_1day = calculate_error(one_day_pred, stock_data['Close'].iloc[-1]) if one_day_pred else None
-    col9.metric("1-Day Prediction", f"{one_day_pred:.2f}" if one_day_pred else "Unavailable", delta=f"{error_1day:.2f}%" if error_1day else "0.00%")
+    error_1day = calculate_error(one_day_pred, stock_data['Close'].iloc[-1])
+    col9.metric("1-Day Prediction", f"{one_day_pred:.2f}" if not np.isnan(one_day_pred) else "Unavailable", delta=f"{error_1day:.2f}%" if not np.isnan(error_1day) else "0.00%")
 
     # 1-Week Prediction
     one_week_pred = predict_future(stock_data, 7)
-    error_1week = calculate_error(one_week_pred, stock_data['Close'].iloc[-1]) if one_week_pred else None
-    col10.metric("1-Week Prediction", f"{one_week_pred:.2f}" if one_week_pred else "Unavailable", delta=f"{error_1week:.2f}%" if error_1week else "0.00%")
+    error_1week = calculate_error(one_week_pred, stock_data['Close'].iloc[-1])
+    col10.metric("1-Week Prediction", f"{one_week_pred:.2f}" if not np.isnan(one_week_pred) else "Unavailable", delta=f"{error_1week:.2f}%" if not np.isnan(error_1week) else "0.00%")
 
     # Error Percentage
-    col11.metric("Error Percentage", f"{error_1day:.2f}%" if error_1day else "0.00%")
+    col11.metric("Error Percentage", f"{error_1day:.2f}%" if not np.isnan(error_1day) else "0.00%")
 
     st.success("🎯 Analysis Completed!")
