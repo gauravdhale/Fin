@@ -93,41 +93,13 @@ if not stock_data.empty:
     # -------------------- 🔮 Future Price Prediction --------------------
     st.subheader("🚀 Future Price Predictions")
 
-    def predict_future_price(data, days):
-        if len(data) < 30:
-            return np.nan
-        
-        try:
-            data['Days'] = np.arange(len(data)).reshape(-1, 1)
-            X = data['Days'].values.reshape(-1, 1)
-            y = data['Close'].values
-
-            model = LinearRegression()
-            model.fit(X, y)
-
-            future_day = np.array([[len(data) + days]])
-            future_price = model.predict(future_day)
-            return future_price[0] if len(future_price) > 0 else np.nan
-        except Exception as e:
-            st.error(f"Prediction Error: {e}")
-            return np.nan
-
-    one_day_pred = predict_future_price(stock_data, 1)
-    one_week_pred = predict_future_price(stock_data, 7)
-    actual_close = stock_data['Close'].iloc[-1]
-    
-    def calculate_error(predicted, actual):
-        if np.isnan(predicted) or np.isnan(actual):
-            return np.nan
-        return ((predicted - actual) / actual) * 100
-
-    error_1day = calculate_error(one_day_pred, actual_close)
-    error_1week = calculate_error(one_week_pred, actual_close)
-
-    col6, col7, col8 = st.columns(3)
-    col6.metric("1-Day Prediction", f"{one_day_pred:.2f}" if not np.isnan(one_day_pred) else "Unavailable", delta=f"{error_1day:.2f}%" if not np.isnan(error_1day) else "0.00%")
-    col7.metric("1-Week Prediction", f"{one_week_pred:.2f}" if not np.isnan(one_week_pred) else "Unavailable", delta=f"{error_1week:.2f}%" if not np.isnan(error_1week) else "0.00%")
-    col8.metric("Error Percentage", f"{error_1day:.2f}%" if not np.isnan(error_1day) else "0.00%")
+    future_predictions = predict_future(stock_data)
+    st.subheader(f"🚀 Future Price Predictions for {selected_stock}")
+    st.dataframe(future_predictions)
+    fig3, ax3 = plt.subplots(figsize=(12, 6))
+    ax3.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Future Price", color='purple')
+    ax3.legend()
+    st.pyplot(fig3)
 
     # -------------------- 📉 Stock Price Prediction Graph --------------------
     st.subheader("📉 Stock Price Prediction Graph")
