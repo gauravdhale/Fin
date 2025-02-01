@@ -34,9 +34,6 @@ def fetch_stock_data(ticker):
     stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
     stock_data['Price_Change'] = stock_data['Close'].pct_change()
     
-    # Buy/Sell Decision
-    stock_data['Signal'] = np.where(stock_data['MA_20'] > stock_data['MA_50'], "BUY", "SELL")
-    
     return stock_data.dropna()
 
 # -------------------- 📡 Fetch Live Market Data --------------------
@@ -110,14 +107,14 @@ col6, col7, col8 = st.columns(3)
 with col6:
     st.subheader("📈 EPS Over Time")
     fig_eps, ax_eps = plt.subplots(figsize=(6, 3))
-    ax_eps.plot(stock_data.index, stock_data['Close'] * 0.02, color='purple', label='EPS')
+    ax_eps.plot(stock_data.index, stock_data['Close'] * 0.02, color='purple', label="EPS")
     ax_eps.legend()
     st.pyplot(fig_eps)
 
 with col7:
     st.subheader("📈 Net Profit Over Time")
     fig_np, ax_np = plt.subplots(figsize=(6, 3))
-    ax_np.plot(stock_data.index, stock_data['Close'] * 0.05, color='green', label='Net Profit")
+    ax_np.plot(stock_data.index, stock_data['Close'] * 0.05, color='green', label="Net Profit")
     ax_np.legend()
     st.pyplot(fig_np)
 
