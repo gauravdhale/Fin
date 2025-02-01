@@ -51,6 +51,23 @@ def fetch_live_data(ticker):
         "EPS": f"{info.get('trailingEps', 0):.2f}"
     }
 
+# -------------------- 🔮 Stock Price Prediction --------------------
+def predict_future(data, days=10):
+    if len(data) < 30:  # Need enough data for predictions
+        return pd.DataFrame(columns=["Date", "Predicted Price"])
+    
+    data['Days'] = np.arange(len(data)).reshape(-1, 1)
+    X = data['Days'].values.reshape(-1, 1)
+    y = data['Close'].values
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    future_dates = np.arange(len(data), len(data) + days).reshape(-1, 1)
+    future_prices = model.predict(future_dates)
+
+    return pd.DataFrame({"Date": pd.date_range(start=data.index[-1], periods=days, freq='D'), "Predicted Price": future_prices})
+
 # -------------------- 📊 Data Processing --------------------
 stock_data = fetch_stock_data(companies[selected_stock])
 live_data = fetch_live_data(companies[selected_stock])
@@ -78,8 +95,10 @@ if not stock_data.empty:
     # -------------------- 🛒 Buy/Sell Decision Graph --------------------
     st.subheader("📊 Buy/Sell Decision")
     fig_bs, ax_bs = plt.subplots(figsize=(10, 4))
-    ax_bs.scatter(stock_data.index, stock_data['Close'], c=(stock_data['Signal'] == 'BUY'), cmap='coolwarm', label='BUY')
-    ax_bs.scatter(stock_data.index, stock_data['Close'], c=(stock_data['Signal'] == 'SELL'), cmap='coolwarm', label='SELL')
+    buy_signals = stock_data[stock_data['Signal'] == "BUY"]
+    sell_signals = stock_data[stock_data['Signal'] == "SELL"]
+    ax_bs.scatter(buy_signals.index, buy_signals['Close'], color='green', label='BUY', marker='^')
+    ax_bs.scatter(sell_signals.index, sell_signals['Close'], color='red', label='SELL', marker='v')
     ax_bs.legend()
     st.pyplot(fig_bs)
 
@@ -91,11 +110,11 @@ if not stock_data.empty:
     st.pyplot(fig2)
 
     # -------------------- 🔮 Future Price Prediction --------------------
-    st.subheader("🚀 Future Price Predictions")
-
     future_predictions = predict_future(stock_data)
     st.subheader(f"🚀 Future Price Predictions for {selected_stock}")
     st.dataframe(future_predictions)
+
+    # Prediction Line Graph
     fig3, ax3 = plt.subplots(figsize=(12, 6))
     ax3.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Future Price", color='purple')
     ax3.legend()
@@ -104,7 +123,7 @@ if not stock_data.empty:
     # -------------------- 📉 Stock Price Prediction Graph --------------------
     st.subheader("📉 Stock Price Prediction Graph")
     future_days = np.arange(len(stock_data), len(stock_data) + 10).reshape(-1, 1)
-    future_prices = [predict_future_price(stock_data, i) for i in range(1, 11)]
+    future_prices = predict_future(stock_data, 10)['Predicted Price']
 
     fig_pred, ax_pred = plt.subplots(figsize=(10, 4))
     ax_pred.plot(stock_data.index, stock_data['Close'], label="Actual Prices", color='blue')
