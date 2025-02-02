@@ -84,31 +84,33 @@ if not bank_nifty_data.empty and not selected_stock_data.empty:
     st.pyplot(fig)
     
     st.subheader("📊 Market Share of Banks")
-    market_shares = np.random.rand(len(companies))
-    market_shares = market_shares / market_shares.sum()  # Normalize so that they sum to 1
-    market_share_dict = dict(zip(companies.keys(), market_shares))
-    
-    # Ensure non-negative "Other Banks" share
-    market_share_dict["Other Banks"] = max(0, 1 - sum(market_shares))
-    
+    market_shares = {stock: np.random.rand() for stock in companies.keys()}
+    total_share = sum(market_shares.values())
+    market_shares = {k: v / total_share for k, v in market_shares.items()}  # Normalize
     fig, ax = plt.subplots(figsize=(5, 3))
-    ax.pie(market_share_dict.values(), labels=market_share_dict.keys(), autopct='%1.1f%%', startangle=90)
+    ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
     ax.axis('equal')
     st.pyplot(fig)
     
-    st.subheader("📊 Prediction for Individual Banks")
-    for bank, ticker in companies.items():
-        bank_data = fetch_stock_data(ticker)
-        if not bank_data.empty:
-            arima_model = ARIMA(bank_data['Close'], order=(5, 1, 0))
-            arima_result = arima_model.fit()
-            future_dates = [bank_data.index[-1] + timedelta(days=i) for i in range(1, 31)]
-            future_predictions = arima_result.forecast(steps=30)
-            pred_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
-            st.subheader(f"📈 Prediction for {bank}")
-            fig, ax = plt.subplots(figsize=(5, 3))
-            ax.plot(pred_df['Date'], pred_df['Predicted Price'], label=f"{bank} Prediction", color='green')
-            ax.legend()
-            st.pyplot(fig)
+    st.subheader(f"📊 Prediction for {selected_stock}")
+    arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
+    arima_result = arima_model.fit()
+    future_dates = [selected_stock_data.index[-1] + timedelta(days=i) for i in range(1, 31)]
+    future_predictions = arima_result.forecast(steps=30)
+    pred_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
+    fig, ax = plt.subplots(figsize=(5, 3))
+    ax.plot(pred_df['Date'], pred_df['Predicted Price'], label=f"{selected_stock} Prediction", color='green')
+    ax.legend()
+    st.pyplot(fig)
+    
+    st.subheader("📊 Heatmap of Stock Correlations")
+    all_stock_data = {stock: fetch_stock_data(ticker)['Close'] for stock, ticker in companies.items() if not fetch_stock_data(ticker).empty}
+    stock_df = pd.DataFrame(all_stock_data)
+    fig, ax = plt.subplots(figsize=(8, 4))
+    sns.heatmap(stock_df.corr(), annot=True, cmap="coolwarm", ax=ax)
+    st.pyplot(fig)
+    
+    st.subheader("📋 BankNifty Index Data Table")
+    st.dataframe(bank_nifty_data.tail(10))
     
     st.success("🎯 Analysis Completed!")
