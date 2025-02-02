@@ -36,14 +36,18 @@ def fetch_stock_data(ticker):
     stock_data['Price_Change'] = stock_data['Close'].pct_change()
     return stock_data.dropna()
 
-# Function to fetch stock data for all banks to compute the correlation
+
 def fetch_all_stock_data():
     all_data = {}
     for stock in companies.values():
         stock_data = fetch_stock_data(stock)
         if not stock_data.empty:
             all_data[stock] = stock_data['Close']
-    return pd.DataFrame(all_data)
+    if all_data:  # Check if any data was collected
+        return pd.DataFrame(all_data)
+    else:
+        return pd.DataFrame()  # Return an empty DataFrame if no data was fetched
+
 
 # Fetch Data
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
