@@ -102,12 +102,12 @@ if not bank_nifty_data.empty and not selected_stock_data.empty:
     ax.legend()
     st.pyplot(fig)
 
-      st.subheader(f"📊 Heatmap: Contribution of Stocks to BankNifty")
+    st.subheader(f"📊 Heatmap: Contribution of Stocks to BankNifty")
     heatmap_data = pd.DataFrame(market_shares, index=["Impact"])
     fig, ax = plt.subplots(figsize=(8, 4))
     sns.heatmap(heatmap_data, annot=True, cmap="coolwarm", linewidths=0.5)
     st.pyplot(fig)
- st.subheader("📊 BankNifty Index Data Table")
+    st.subheader("📊 BankNifty Index Data Table")
     st.dataframe(bank_nifty_data.tail(20))
     
     st.success("🎯 Analysis Completed!")
