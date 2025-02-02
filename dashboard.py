@@ -76,32 +76,32 @@ if not stock_data.empty:
     ax.legend()
     st.pyplot(fig)
     
-    def train_model(data):
-        X = data[['Open', 'High', 'Low', 'MA_20', 'MA_50', 'Price_Change']]
-        y = data['Close']
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42)
-        
-        models = {
-            "Linear Regression": LinearRegression(),
-            "SVR": SVR(kernel='rbf', C=10, epsilon=0.1),
-            "Random Forest": RandomForestRegressor(n_estimators=100, max_depth=10)
-        }
-        for model in models.values():
-            model.fit(X_train, y_train)
-        voting_model = VotingRegressor([(name, model) for name, model in models.items()])
-        voting_model.fit(X_train, y_train)
-        y_pred = voting_model.predict(X_test)
-        return y_test, y_pred
+    st.subheader("📊 Market Share of Top Banks")
+    market_shares = {stock: np.random.rand() for stock in companies.keys()}  # Mock data
+    fig, ax = plt.subplots()
+    ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
+    ax.axis('equal')
+    st.pyplot(fig)
     
-    y_test, y_pred = train_model(stock_data)
+    st.subheader("📈 Net Profit Trend")
+    net_profit = {stock: np.random.randint(1000, 5000) for stock in companies.keys()}  # Mock data
+    fig, ax = plt.subplots()
+    ax.bar(net_profit.keys(), net_profit.values(), color='green')
+    st.pyplot(fig)
     
     st.subheader(f"📊 Heatmap: Contribution of Stocks to BankNifty")
-    stock_contributions = {stock: np.random.rand() for stock in companies.keys()}  # Mock data
-    heatmap_data = pd.DataFrame(stock_contributions, index=["Impact"])
+    heatmap_data = pd.DataFrame(market_shares, index=["Impact"])
     fig, ax = plt.subplots(figsize=(8, 4))
     sns.heatmap(heatmap_data, annot=True, cmap="coolwarm", linewidths=0.5)
     st.pyplot(fig)
+    
+    st.subheader("📉 Price Line Graph of BankNifty")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='purple')
+    ax.legend()
+    st.pyplot(fig)
+    
+    st.subheader("📊 BankNifty Index Data Table")
+    st.dataframe(bank_nifty_data.tail(20))
     
     st.success("🎯 Analysis Completed!")
