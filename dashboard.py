@@ -47,7 +47,7 @@ def fetch_stock_data(ticker):
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
 
 if not bank_nifty_data.empty:
-    st.markdown("## 📈 Key Metrics")
+    st.markdown(f"## 📈 {selected_stock} Metrics")
     with st.container():
         metric_cols = st.columns(8)
         metric_labels = ["Open", "Close", "High", "Low", "EPS", "IPO Price", "P/E Ratio", "Dividend"]
@@ -60,7 +60,7 @@ if not bank_nifty_data.empty:
     col1, col2, col3 = st.columns(3)
     with col1:
         st.subheader("📈 BankNifty Trend & Prediction")
-        fig, ax = plt.subplots(figsize=(5, 3))
+        fig, ax = plt.subplots(figsize=(4, 2))
         ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='blue')
         ax.legend()
         st.pyplot(fig)
@@ -68,7 +68,7 @@ if not bank_nifty_data.empty:
     with col2:
         st.subheader("📊 Market Share of Top Banks")
         market_shares = {stock: np.random.rand() for stock in companies.keys()}  # Mock data
-        fig, ax = plt.subplots(figsize=(5, 3))
+        fig, ax = plt.subplots(figsize=(4, 2))
         ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
         ax.axis('equal')
         st.pyplot(fig)
@@ -76,7 +76,7 @@ if not bank_nifty_data.empty:
     with col3:
         st.subheader("📈 Net Profit Trend")
         net_profit = {stock: np.random.randint(1000, 5000) for stock in companies.keys()}  # Mock data
-        fig, ax = plt.subplots(figsize=(5, 3))
+        fig, ax = plt.subplots(figsize=(4, 2))
         ax.bar(net_profit.keys(), net_profit.values(), color='green')
         st.pyplot(fig)
     
@@ -84,13 +84,13 @@ if not bank_nifty_data.empty:
     with col4:
         st.subheader("📊 Heatmap: Contribution of Stocks to BankNifty")
         heatmap_data = pd.DataFrame(market_shares, index=["Impact"])
-        fig, ax = plt.subplots(figsize=(5, 3))
+        fig, ax = plt.subplots(figsize=(4, 2))
         sns.heatmap(heatmap_data, annot=True, cmap="coolwarm", linewidths=0.5)
         st.pyplot(fig)
     
     with col5:
         st.subheader("📉 Price Line Graph of BankNifty")
-        fig, ax = plt.subplots(figsize=(5, 3))
+        fig, ax = plt.subplots(figsize=(4, 2))
         ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='purple')
         ax.legend()
         st.pyplot(fig)
