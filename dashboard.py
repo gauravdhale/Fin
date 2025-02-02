@@ -101,7 +101,17 @@ if not bank_nifty_data.empty and not selected_stock_data.empty:
     ax.plot(pred_df['Date'], pred_df['Predicted Price'], label=f"{selected_stock} Prediction", color='green')
     ax.legend()
     st.pyplot(fig)
-
+    
+    st.subheader("📊 Heatmap of Stock Correlations")
+    all_stock_data = {stock: fetch_stock_data(ticker)['Close'] for stock, ticker in companies.items()}
+    all_stock_data = {k: v.dropna() for k, v in all_stock_data.items() if not v.empty}  # Drop empty series
+    stock_df = pd.DataFrame(all_stock_data).dropna(axis=1, how='all')  # Remove columns with all NaN values
+    if not stock_df.empty:
+        fig, ax = plt.subplots(figsize=(8, 4))
+        sns.heatmap(stock_df.corr(), annot=True, cmap="coolwarm", ax=ax)
+        st.pyplot(fig)
+    else:
+        st.warning("⚠️ Not enough data to generate a correlation heatmap.")
     
     st.subheader("📋 BankNifty Index Data Table")
     st.dataframe(bank_nifty_data.tail(10))
