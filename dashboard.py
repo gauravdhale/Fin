@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.linear_model import LinearRegression
 
 # -------------------- 🏦 Define Banking Stocks --------------------
@@ -28,8 +27,6 @@ def fetch_stock_data(ticker):
     if stock_data.empty:
         st.error(f"⚠️ No data found for {ticker}.")
         return pd.DataFrame()
-    stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
-    stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
     return stock_data.dropna()
 
 # -------------------- 📡 Fetch Live Market Data --------------------
@@ -52,15 +49,14 @@ def predict_future(data, days=30):
     if len(data) < 30:
         return pd.DataFrame(columns=["Date", "Predicted Price"])
     
-    data['Days'] = np.arange(len(data)).reshape(-1, 1)
-    X = data['Days'].values.reshape(-1, 1)
+    X = np.arange(len(data)).reshape(-1, 1)
     y = data['Close'].values
 
     model = LinearRegression()
     model.fit(X, y)
 
-    future_dates = np.arange(len(data), len(data) + days).reshape(-1, 1)
-    future_prices = model.predict(future_dates).flatten()  # Ensure 1D array
+    future_X = np.arange(len(data), len(data) + days).reshape(-1, 1)
+    future_prices = model.predict(future_X).flatten()  
 
     return pd.DataFrame({"Date": pd.date_range(start=data.index[-1], periods=days, freq='D'), "Predicted Price": future_prices})
 
@@ -85,7 +81,7 @@ col3.metric("📊 Current Price", f"${live_data['Current Price']:.2f}")
 col4.metric("📉 P/E Ratio", f"{live_data['P/E Ratio']:.2f}")
 col5.metric("📊 Volume", f"{live_data['Volume']:,}")
 
-# -------------------- 📉 Stock Price Chart (Open, Close, Current) --------------------
+# -------------------- 📉 Stock Price Chart --------------------
 st.subheader(f"📊 Stock Price Trend: {selected_stock}")
 fig, ax = plt.subplots(figsize=(6, 3))
 ax.plot(stock_data.index, stock_data['Open'], label="Open Price", color='green')
@@ -93,23 +89,6 @@ ax.plot(stock_data.index, stock_data['Close'], label="Close Price", color='blue'
 ax.axhline(y=live_data['Current Price'], color='red', linestyle='--', label="Current Price")
 ax.legend()
 st.pyplot(fig)
-
-# -------------------- 📈 EPS & Net Profit Line Charts --------------------
-col6, col7, col8 = st.columns(3)
-
-with col6:
-    st.subheader("📈 EPS Over Time")
-    fig_eps, ax_eps = plt.subplots(figsize=(6, 3))
-    ax_eps.plot(stock_data.index, stock_data['Close'] * 0.02, color='purple', label="EPS")
-    ax_eps.legend()
-    st.pyplot(fig_eps)
-
-with col7:
-    st.subheader("📈 Net Profit Over Time")
-    fig_np, ax_np = plt.subplots(figsize=(6, 3))
-    ax_np.plot(stock_data.index, stock_data['Close'] * 0.05, color='green', label="Net Profit")  # ✅ Fixed Syntax Error
-    ax_np.legend()
-    st.pyplot(fig_np)
 
 # -------------------- 🔮 30-Day Future Price Prediction --------------------
 st.subheader("📈 30-Day Price Prediction")
