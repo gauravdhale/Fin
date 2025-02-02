@@ -40,68 +40,53 @@ def fetch_stock_data(ticker):
     stock_data['Price_Change'] = stock_data['Close'].pct_change()
     return stock_data.dropna()
 
-def fetch_live_data(ticker):
-    stock = yf.Ticker(ticker)
-    info = stock.info
-    return {
-        "Current Price": f"{info.get('currentPrice', 0):.4f}",
-        "Open": f"{info.get('open', 0):.4f}",
-        "Close": f"{info.get('previousClose', 0):.4f}",
-        "P/E Ratio": f"{info.get('trailingPE', 0):.4f}",
-        "EPS": f"{info.get('trailingEps', 0):.4f}",
-        "Volume": f"{info.get('volume', 0):,.4f}",
-        "IPO Price": f"{info.get('regularMarketPreviousClose', 0):.4f}",
-        "Dividend": f"{info.get('dividendYield', 0):.4f}"
-    }
-
 # Fetch Data
-stock_data = fetch_stock_data(companies[selected_stock])
-live_data = fetch_live_data(companies[selected_stock])
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
 
-if not stock_data.empty:
+if not bank_nifty_data.empty:
     st.markdown("## 📈 BankNifty & Stock Market Overview")
-    col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
-    col1.metric("📌 Open Price", live_data["Open"])
-    col2.metric("💰 Close Price", live_data["Close"])
-    col3.metric("📊 Current Price", live_data["Current Price"])
-    col4.metric("📉 P/E Ratio", live_data["P/E Ratio"])
-    col5.metric("📊 EPS", live_data["EPS"])
-    col6.metric("📊 Volume", live_data["Volume"])
-    col7.metric("🚀 Dividend", live_data["Dividend"])
     
-    st.subheader(f"📈 BankNifty Trend & Prediction")
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='blue')
-    ax.legend()
-    st.pyplot(fig)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("📈 BankNifty Trend & Prediction")
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='blue')
+        ax.legend()
+        st.pyplot(fig)
     
-    st.subheader("📊 Market Share of Top Banks")
-    market_shares = {stock: np.random.rand() for stock in companies.keys()}  # Mock data
-    fig, ax = plt.subplots()
-    ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
-    ax.axis('equal')
-    st.pyplot(fig)
+    with col2:
+        st.subheader("📊 Market Share of Top Banks")
+        market_shares = {stock: np.random.rand() for stock in companies.keys()}  # Mock data
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
+        ax.axis('equal')
+        st.pyplot(fig)
     
-    st.subheader("📈 Net Profit Trend")
-    net_profit = {stock: np.random.randint(1000, 5000) for stock in companies.keys()}  # Mock data
-    fig, ax = plt.subplots()
-    ax.bar(net_profit.keys(), net_profit.values(), color='green')
-    st.pyplot(fig)
+    col3, col4 = st.columns(2)
+    with col3:
+        st.subheader("📈 Net Profit Trend")
+        net_profit = {stock: np.random.randint(1000, 5000) for stock in companies.keys()}  # Mock data
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.bar(net_profit.keys(), net_profit.values(), color='green')
+        st.pyplot(fig)
     
-    st.subheader(f"📊 Heatmap: Contribution of Stocks to BankNifty")
-    heatmap_data = pd.DataFrame(market_shares, index=["Impact"])
-    fig, ax = plt.subplots(figsize=(8, 4))
-    sns.heatmap(heatmap_data, annot=True, cmap="coolwarm", linewidths=0.5)
-    st.pyplot(fig)
+    with col4:
+        st.subheader("📊 Heatmap: Contribution of Stocks to BankNifty")
+        heatmap_data = pd.DataFrame(market_shares, index=["Impact"])
+        fig, ax = plt.subplots(figsize=(6, 4))
+        sns.heatmap(heatmap_data, annot=True, cmap="coolwarm", linewidths=0.5)
+        st.pyplot(fig)
     
-    st.subheader("📉 Price Line Graph of BankNifty")
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='purple')
-    ax.legend()
-    st.pyplot(fig)
+    col5, col6 = st.columns(2)
+    with col5:
+        st.subheader("📉 Price Line Graph of BankNifty")
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='purple')
+        ax.legend()
+        st.pyplot(fig)
     
-    st.subheader("📊 BankNifty Index Data Table")
-    st.dataframe(bank_nifty_data.tail(20))
+    with col6:
+        st.subheader("📊 BankNifty Index Data Table")
+        st.dataframe(bank_nifty_data.tail(20))
     
     st.success("🎯 Analysis Completed!")
