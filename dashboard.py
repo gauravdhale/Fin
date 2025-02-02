@@ -44,6 +44,12 @@ def fetch_stock_data(ticker):
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
 
 if not bank_nifty_data.empty:
+    st.markdown("## 📈 Key Metrics")
+    metrics_col = st.columns(4)
+    for i, metric in enumerate(["Open", "Close", "High", "Low", "EPS", "IPO Price", "P/E Ratio", "Dividend"]):
+        with metrics_col[i % 4]:
+            st.metric(label=metric, value=np.random.randint(100, 1000))
+    
     st.markdown("## 📈 BankNifty & Stock Market Overview")
     
     col1, col2, col3 = st.columns(3)
@@ -87,11 +93,5 @@ if not bank_nifty_data.empty:
     with col6:
         st.subheader("📊 BankNifty Index Data Table")
         st.dataframe(bank_nifty_data.tail(20))
-    
-    st.markdown("### 📌 Key Metrics")
-    metrics_col = st.columns(4)
-    for i, metric in enumerate(["Open", "Close", "High", "Low", "EPS", "IPO Price", "P/E Ratio", "Dividend"]):
-        with metrics_col[i % 4]:
-            st.metric(label=metric, value=np.random.randint(100, 1000))
     
     st.success("🎯 Analysis Completed!")
