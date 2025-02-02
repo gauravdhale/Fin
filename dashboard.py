@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
@@ -12,7 +13,7 @@ from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime, timedelta
 from sklearn.metrics import mean_squared_error, r2_score
 
-# Define Banking Stocks
+# Define Banking Stocks and Bank Nifty Index
 companies = {
     'HDFC Bank': 'HDFCBANK.NS',
     'ICICI Bank': 'ICICIBANK.NS',
@@ -22,9 +23,11 @@ companies = {
     'Bank of Baroda': 'BANKBARODA.NS'
 }
 
+bank_nifty_ticker = "^NSEBANK"
+
 # Streamlit Sidebar
 st.set_page_config(layout="wide")
-st.sidebar.title("📊 AI Banking Sector Stock Dashboard")
+st.sidebar.title("📊 AI Banking Sector & BankNifty Dashboard")
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
 def fetch_stock_data(ticker):
@@ -45,29 +48,31 @@ def fetch_live_data(ticker):
         "Open": f"{info.get('open', 0):.4f}",
         "Close": f"{info.get('previousClose', 0):.4f}",
         "P/E Ratio": f"{info.get('trailingPE', 0):.4f}",
+        "EPS": f"{info.get('trailingEps', 0):.4f}",
         "Volume": f"{info.get('volume', 0):,.4f}",
-        "IPO Price": f"{info.get('regularMarketPreviousClose', 0):.4f}"
+        "IPO Price": f"{info.get('regularMarketPreviousClose', 0):.4f}",
+        "Dividend": f"{info.get('dividendYield', 0):.4f}"
     }
 
 # Fetch Data
 stock_data = fetch_stock_data(companies[selected_stock])
 live_data = fetch_live_data(companies[selected_stock])
+bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
 
 if not stock_data.empty:
-    st.markdown("## 📈 Stock Market Overview")
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    st.markdown("## 📈 BankNifty & Stock Market Overview")
+    col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
     col1.metric("📌 Open Price", live_data["Open"])
     col2.metric("💰 Close Price", live_data["Close"])
     col3.metric("📊 Current Price", live_data["Current Price"])
     col4.metric("📉 P/E Ratio", live_data["P/E Ratio"])
-    col5.metric("📊 Volume", live_data["Volume"])
-    col6.metric("🚀 IPO Price", live_data["IPO Price"])
+    col5.metric("📊 EPS", live_data["EPS"])
+    col6.metric("📊 Volume", live_data["Volume"])
+    col7.metric("🚀 Dividend", live_data["Dividend"])
     
-    st.subheader(f"📈 Stock Price Trend: {selected_stock}")
+    st.subheader(f"📈 BankNifty Trend & Prediction")
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(stock_data.index, stock_data['Close'], label="Close Price", color='blue')
-    ax.plot(stock_data.index, stock_data['MA_20'], label="20-Day MA", linestyle='dashed', color='orange')
-    ax.plot(stock_data.index, stock_data['MA_50'], label="50-Day MA", linestyle='dashed', color='green')
+    ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='blue')
     ax.legend()
     st.pyplot(fig)
     
@@ -92,29 +97,11 @@ if not stock_data.empty:
     
     y_test, y_pred = train_model(stock_data)
     
-    st.subheader(f"📊 Model Performance for {selected_stock}")
-    st.write(f"**Mean Squared Error:** {np.round(mean_squared_error(y_test, y_pred), 4)}")
-    st.write(f"**R² Score:** {np.round(r2_score(y_test, y_pred), 4)}")
-    
-    fig2, ax2 = plt.subplots(figsize=(12, 6))
-    ax2.plot(y_test.index, y_test, label="Actual Price", color='blue')
-    ax2.plot(y_test.index, y_pred, label="Predicted Price", linestyle='dashed', color='red')
-    ax2.legend()
-    st.pyplot(fig2)
-    
-    def predict_future(data):
-        arima_model = ARIMA(data['Close'], order=(5, 1, 0))
-        arima_result = arima_model.fit()
-        future_dates = [data.index[-1] + timedelta(days=i) for i in range(1, 31)]
-        future_predictions = arima_result.forecast(steps=30)
-        return pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
-    
-    future_predictions = predict_future(stock_data)
-    st.subheader(f"🚀 Future Price Predictions for {selected_stock}")
-    st.dataframe(future_predictions)
-    fig3, ax3 = plt.subplots(figsize=(12, 6))
-    ax3.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Future Price", color='purple')
-    ax3.legend()
-    st.pyplot(fig3)
+    st.subheader(f"📊 Heatmap: Contribution of Stocks to BankNifty")
+    stock_contributions = {stock: np.random.rand() for stock in companies.keys()}  # Mock data
+    heatmap_data = pd.DataFrame(stock_contributions, index=["Impact"])
+    fig, ax = plt.subplots(figsize=(8, 4))
+    sns.heatmap(heatmap_data, annot=True, cmap="coolwarm", linewidths=0.5)
+    st.pyplot(fig)
     
     st.success("🎯 Analysis Completed!")
