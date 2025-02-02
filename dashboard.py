@@ -84,10 +84,15 @@ if not bank_nifty_data.empty and not selected_stock_data.empty:
     st.pyplot(fig)
     
     st.subheader("📊 Market Share of Banks")
-    market_shares = {stock: np.random.rand() for stock in companies.keys()}
-    market_shares["Other Banks"] = 1 - sum(market_shares.values())
+    market_shares = np.random.rand(len(companies))
+    market_shares = market_shares / market_shares.sum()  # Normalize so that they sum to 1
+    market_share_dict = dict(zip(companies.keys(), market_shares))
+    
+    # Ensure non-negative "Other Banks" share
+    market_share_dict["Other Banks"] = max(0, 1 - sum(market_shares))
+    
     fig, ax = plt.subplots(figsize=(5, 3))
-    ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
+    ax.pie(market_share_dict.values(), labels=market_share_dict.keys(), autopct='%1.1f%%', startangle=90)
     ax.axis('equal')
     st.pyplot(fig)
     
