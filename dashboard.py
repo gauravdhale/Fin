@@ -102,7 +102,7 @@ if not bank_nifty_data.empty and not selected_stock_data.empty:
     ax.legend()
     st.pyplot(fig)
     
-    st.subheader("📊 Heatmap of Stock Correlations")
+    st.subheader("📊 Heatmap: Contribution of Stocks to BankNifty")
     all_stock_data = {stock: fetch_stock_data(ticker)['Close'] for stock, ticker in companies.items()}
     all_stock_data = {k: v.dropna() for k, v in all_stock_data.items() if not v.empty}  # Drop empty series
     stock_df = pd.DataFrame(all_stock_data).dropna(axis=1, how='all')  # Remove columns with all NaN values
