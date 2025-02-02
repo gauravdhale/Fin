@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime, timedelta
+import seaborn as sns  # Import seaborn for heatmap
 
 # Define Banking Stocks and Bank Nifty Index
 companies = {
@@ -34,6 +35,15 @@ def fetch_stock_data(ticker):
     stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
     stock_data['Price_Change'] = stock_data['Close'].pct_change()
     return stock_data.dropna()
+
+# Function to fetch stock data for all banks to compute the correlation
+def fetch_all_stock_data():
+    all_data = {}
+    for stock in companies.values():
+        stock_data = fetch_stock_data(stock)
+        if not stock_data.empty:
+            all_data[stock] = stock_data['Close']
+    return pd.DataFrame(all_data)
 
 # Fetch Data
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
@@ -97,5 +107,18 @@ if not bank_nifty_data.empty and not selected_stock_data.empty:
     
     st.subheader("📋 BankNifty Index Data Table")
     st.dataframe(bank_nifty_data.tail(10))
+    
+    # Fetch all stocks data for correlation heatmap
+    all_stocks_data = fetch_all_stock_data()
+
+    if not all_stocks_data.empty:
+        # Compute Correlation Matrix
+        correlation_matrix = all_stocks_data.corr()
+
+        # Plot Heatmap for Correlation
+        st.subheader("📊 Correlation Heatmap between Bank Stocks and BankNifty")
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f", ax=ax, cbar_kws={'label': 'Correlation Coefficient'})
+        st.pyplot(fig)
     
     st.success("🎯 Analysis Completed!")
