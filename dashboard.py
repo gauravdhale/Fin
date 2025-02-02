@@ -3,9 +3,16 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor, VotingRegressor
+from statsmodels.tsa.arima.model import ARIMA
+from datetime import datetime, timedelta
+from sklearn.metrics import mean_squared_error, r2_score
 
-# -------------------- 🏦 Define Banking Stocks --------------------
+# Define Banking Stocks
 companies = {
     'HDFC Bank': 'HDFCBANK.NS',
     'ICICI Bank': 'ICICIBANK.NS',
@@ -15,97 +22,99 @@ companies = {
     'Bank of Baroda': 'BANKBARODA.NS'
 }
 
-# -------------------- 🎨 Streamlit UI Layout --------------------
-st.set_page_config(page_title="Stock Dashboard", layout="wide")
-st.sidebar.title("📊 AI Banking Stock Dashboard")
+# Streamlit Sidebar
+st.set_page_config(layout="wide")
+st.sidebar.title("📊 AI Banking Sector Stock Dashboard")
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
-# -------------------- 📥 Fetch Stock Data --------------------
-@st.cache_data
 def fetch_stock_data(ticker):
-    stock_data = yf.download(ticker, period="5y", interval="1d")
+    stock_data = yf.download(ticker, period="10y", interval="1d")
     if stock_data.empty:
-        st.error(f"⚠️ No data found for {ticker}.")
+        st.error(f"⚠️ Error: No data found for {ticker}.")
         return pd.DataFrame()
+    stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
+    stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
+    stock_data['Price_Change'] = stock_data['Close'].pct_change()
     return stock_data.dropna()
 
-# -------------------- 📡 Fetch Live Market Data --------------------
-@st.cache_data
 def fetch_live_data(ticker):
     stock = yf.Ticker(ticker)
     info = stock.info
     return {
-        "Current Price": float(info.get('currentPrice', 0)),
-        "Open": float(info.get('open', 0)),
-        "Close": float(info.get('previousClose', 0)),
-        "P/E Ratio": float(info.get('trailingPE', 0)),
-        "Volume": int(info.get('volume', 0)),
-        "EPS": float(info.get('trailingEps', 0)),
-        "Net Profit": float(info.get('netIncomeToCommon', 0))
+        "Current Price": f"{info.get('currentPrice', 0):.4f}",
+        "Open": f"{info.get('open', 0):.4f}",
+        "Close": f"{info.get('previousClose', 0):.4f}",
+        "P/E Ratio": f"{info.get('trailingPE', 0):.4f}",
+        "Volume": f"{info.get('volume', 0):,.4f}",
+        "IPO Price": f"{info.get('regularMarketPreviousClose', 0):.4f}"
     }
 
-# -------------------- 🔮 Stock Price Prediction --------------------
-def predict_future(data, days=30):
-    if len(data) < 30:
-        return pd.DataFrame(columns=["Date", "Predicted Price"])
-    
-    X = np.arange(len(data)).reshape(-1, 1)
-    y = data['Close'].values
-
-    model = LinearRegression()
-    model.fit(X, y)
-
-    future_X = np.arange(len(data), len(data) + days).reshape(-1, 1)
-    future_prices = model.predict(future_X).flatten()  
-
-    return pd.DataFrame({"Date": pd.date_range(start=data.index[-1], periods=days, freq='D'), "Predicted Price": future_prices})
-
-# -------------------- 📊 Data Processing --------------------
+# Fetch Data
 stock_data = fetch_stock_data(companies[selected_stock])
 live_data = fetch_live_data(companies[selected_stock])
 
-# -------------------- 📅 Date Selection (Dynamically Update Charts) --------------------
-st.sidebar.subheader("📅 Select Date Range")
-min_date, max_date = stock_data.index.min().date(), stock_data.index.max().date()
-start_date = st.sidebar.date_input("Start Date", min_value=min_date, max_value=max_date, value=min_date)
-end_date = st.sidebar.date_input("End Date", min_value=min_date, max_value=max_date, value=max_date)
-
-stock_data = stock_data.loc[(stock_data.index >= pd.to_datetime(start_date)) & (stock_data.index <= pd.to_datetime(end_date))]
-
-# -------------------- 📈 Stock Market Overview --------------------
-st.markdown("## 📈 Stock Market Overview")
-col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("📌 Open Price", f"${live_data['Open']:.2f}")
-col2.metric("💰 Close Price", f"${live_data['Close']:.2f}")
-col3.metric("📊 Current Price", f"${live_data['Current Price']:.2f}")
-col4.metric("📉 P/E Ratio", f"{live_data['P/E Ratio']:.2f}")
-col5.metric("📊 Volume", f"{live_data['Volume']:,}")
-
-# -------------------- 📉 Stock Price Chart --------------------
-st.subheader(f"📊 Stock Price Trend: {selected_stock}")
-fig, ax = plt.subplots(figsize=(6, 3))
-ax.plot(stock_data.index, stock_data['Open'], label="Open Price", color='green')
-ax.plot(stock_data.index, stock_data['Close'], label="Close Price", color='blue')
-ax.axhline(y=live_data['Current Price'], color='red', linestyle='--', label="Current Price")
-ax.legend()
-st.pyplot(fig)
-
-# -------------------- 🔮 30-Day Future Price Prediction --------------------
-st.subheader("📈 30-Day Price Prediction")
-future_predictions = predict_future(stock_data, days=30)
-
-fig_pred, ax_pred = plt.subplots(figsize=(6, 3))
-ax_pred.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Predicted Price", color='red')
-ax_pred.legend()
-st.pyplot(fig_pred)
-
-# -------------------- 📌 Error Rate in Metric Card --------------------
-actual_close = stock_data['Close'].iloc[-1]
-predicted_close = future_predictions['Predicted Price'].iloc[0] if not future_predictions.empty else np.nan
-error_rate = abs((predicted_close - actual_close) / actual_close) * 100 if not np.isnan(predicted_close) else 0
-
-st.subheader("📌 Error Metrics")
-col9, col10 = st.columns(2)
-col9.metric("🔍 Prediction Error Rate", f"{error_rate:.2f}%")
-
-st.success("🎯 Analysis Completed!")
+if not stock_data.empty:
+    st.markdown("## 📈 Stock Market Overview")
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1.metric("📌 Open Price", live_data["Open"])
+    col2.metric("💰 Close Price", live_data["Close"])
+    col3.metric("📊 Current Price", live_data["Current Price"])
+    col4.metric("📉 P/E Ratio", live_data["P/E Ratio"])
+    col5.metric("📊 Volume", live_data["Volume"])
+    col6.metric("🚀 IPO Price", live_data["IPO Price"])
+    
+    st.subheader(f"📈 Stock Price Trend: {selected_stock}")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(stock_data.index, stock_data['Close'], label="Close Price", color='blue')
+    ax.plot(stock_data.index, stock_data['MA_20'], label="20-Day MA", linestyle='dashed', color='orange')
+    ax.plot(stock_data.index, stock_data['MA_50'], label="50-Day MA", linestyle='dashed', color='green')
+    ax.legend()
+    st.pyplot(fig)
+    
+    def train_model(data):
+        X = data[['Open', 'High', 'Low', 'MA_20', 'MA_50', 'Price_Change']]
+        y = data['Close']
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42)
+        
+        models = {
+            "Linear Regression": LinearRegression(),
+            "SVR": SVR(kernel='rbf', C=10, epsilon=0.1),
+            "Random Forest": RandomForestRegressor(n_estimators=100, max_depth=10)
+        }
+        for model in models.values():
+            model.fit(X_train, y_train)
+        voting_model = VotingRegressor([(name, model) for name, model in models.items()])
+        voting_model.fit(X_train, y_train)
+        y_pred = voting_model.predict(X_test)
+        return y_test, y_pred
+    
+    y_test, y_pred = train_model(stock_data)
+    
+    st.subheader(f"📊 Model Performance for {selected_stock}")
+    st.write(f"**Mean Squared Error:** {np.round(mean_squared_error(y_test, y_pred), 4)}")
+    st.write(f"**R² Score:** {np.round(r2_score(y_test, y_pred), 4)}")
+    
+    fig2, ax2 = plt.subplots(figsize=(12, 6))
+    ax2.plot(y_test.index, y_test, label="Actual Price", color='blue')
+    ax2.plot(y_test.index, y_pred, label="Predicted Price", linestyle='dashed', color='red')
+    ax2.legend()
+    st.pyplot(fig2)
+    
+    def predict_future(data):
+        arima_model = ARIMA(data['Close'], order=(5, 1, 0))
+        arima_result = arima_model.fit()
+        future_dates = [data.index[-1] + timedelta(days=i) for i in range(1, 31)]
+        future_predictions = arima_result.forecast(steps=30)
+        return pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
+    
+    future_predictions = predict_future(stock_data)
+    st.subheader(f"🚀 Future Price Predictions for {selected_stock}")
+    st.dataframe(future_predictions)
+    fig3, ax3 = plt.subplots(figsize=(12, 6))
+    ax3.plot(future_predictions['Date'], future_predictions['Predicted Price'], label="Future Price", color='purple')
+    ax3.legend()
+    st.pyplot(fig3)
+    
+    st.success("🎯 Analysis Completed!")
