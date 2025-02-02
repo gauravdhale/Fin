@@ -25,10 +25,13 @@ companies = {
 
 bank_nifty_ticker = "^NSEBANK"
 
-# Streamlit Sidebar
+# Streamlit Config
 st.set_page_config(layout="wide")
-st.sidebar.title("📊 AI Banking Sector & BankNifty Dashboard")
-selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
+
+# Selection Dropdown on Top Right
+col_top1, col_top2 = st.columns([4, 1])
+with col_top2:
+    selected_stock = st.selectbox("🔍 Select a Bank", list(companies.keys()))
 
 def fetch_stock_data(ticker):
     stock_data = yf.download(ticker, period="10y", interval="1d")
