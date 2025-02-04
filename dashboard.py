@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime, timedelta
-import seaborn as sns  # Import seaborn for heatmap
+import seaborn as sns
 
 # Define Banking Stocks and Bank Nifty Index
 companies = {
@@ -44,18 +44,35 @@ def fetch_all_stock_data():
             all_data[stock] = stock_data['Close']
     return pd.DataFrame(all_data) if all_data else pd.DataFrame()
 
+def get_stock_metrics(ticker):
+    stock = yf.Ticker(ticker)
+    info = stock.info
+    return {
+        "Open": info.get("open", "N/A"),
+        "Close": info.get("previousClose", "N/A"),
+        "High": info.get("dayHigh", "N/A"),
+        "Low": info.get("dayLow", "N/A"),
+        "EPS": info.get("trailingEps", "N/A"),
+        "IPO Price": info.get("regularMarketOpen", "N/A"),
+        "P/E Ratio": info.get("trailingPE", "N/A"),
+        "Dividend": info.get("dividendYield", "N/A"),
+    }
+
 # Fetch Data
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
 selected_stock_data = fetch_stock_data(companies[selected_stock])
+stock_metrics = get_stock_metrics(companies[selected_stock])
 
 if not bank_nifty_data.empty and not selected_stock_data.empty:
     st.markdown(f"## 📈 {selected_stock} Metrics")
+    
     with st.container():
         metric_cols = st.columns(8)
         metric_labels = ["Open", "Close", "High", "Low", "EPS", "IPO Price", "P/E Ratio", "Dividend"]
+        
         for i, metric in enumerate(metric_labels):
             with metric_cols[i]:
-                st.metric(label=metric, value=np.random.randint(100, 1000))
+                st.metric(label=metric, value=stock_metrics[metric])
     
     st.markdown("## 📈 BankNifty & Stock Market Overview")
     
