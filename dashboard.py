@@ -136,16 +136,6 @@ with col4:
     profit_revenue_data.set_index("Year").plot(kind="bar", ax=ax, width=0.8)
     st.pyplot(fig)
 
-# Market Share of Banks
-with col5:
-    st.subheader("📊 Market Share of Banks")
-    market_shares = {stock: np.random.rand() for stock in companies.keys()}
-    total_share = sum(market_shares.values())
-    market_shares = {k: v / total_share for k, v in market_shares.items()}  
-    fig, ax = plt.subplots(figsize=(5, 3))
-    ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
-    ax.axis('equal')
-    st.pyplot(fig)
 
 # BankNifty Data Table
 st.subheader("📋 BankNifty Index Data Table")
