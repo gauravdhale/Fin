@@ -3,9 +3,9 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime, timedelta
+import seaborn as sns
 
 # Define Banking Stocks and Bank Nifty Index
 companies = {
@@ -28,13 +28,18 @@ with col_top2:
     selected_stock = st.selectbox("🔍 Select a Bank", list(companies.keys()))
 
 def fetch_stock_data(ticker):
-    stock_data = yf.download(ticker, period="10y", interval="1d")
-    if stock_data.empty:
+    try:
+        stock_data = yf.download(ticker, period="10y", interval="1d")
+        if stock_data.empty:
+            st.warning(f"⚠️ No data available for {ticker}.")
+            return pd.DataFrame()
+        stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
+        stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
+        stock_data['Price_Change'] = stock_data['Close'].pct_change()
+        return stock_data.dropna()
+    except Exception as e:
+        st.error(f"Error fetching data for {ticker}: {e}")
         return pd.DataFrame()
-    stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
-    stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
-    stock_data['Price_Change'] = stock_data['Close'].pct_change()
-    return stock_data.dropna()
 
 def fetch_all_stock_data():
     all_data = {}
@@ -51,63 +56,62 @@ selected_stock_data = fetch_stock_data(companies[selected_stock])
 if not bank_nifty_data.empty and not selected_stock_data.empty:
     st.markdown(f"## 📈 {selected_stock} Metrics")
     with st.container():
-        metric_cols = st.columns(4)
-        last_row = selected_stock_data.iloc[-1]
-        metrics = {
-            "Open": last_row['Open'],
-            "Close": last_row['Close'],
-            "High": last_row['High'],
-            "Low": last_row['Low']
-        }
-        for i, (metric, value) in enumerate(metrics.items()):
+        metric_cols = st.columns(8)
+        metric_labels = ["Open", "Close", "High", "Low", "EPS", "IPO Price", "P/E Ratio", "Dividend"]
+        for i, metric in enumerate(metric_labels):
             with metric_cols[i]:
-                st.metric(label=metric, value=f"{value:.2f}")
+                st.metric(label=metric, value=f"{selected_stock_data.iloc[-1]['Close']:.2f}")
     
-    st.markdown("## 📊 Market Overview")
-    col1, col2 = st.columns(2)
+    st.markdown("## 📈 BankNifty & Stock Market Overview")
+    
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.subheader("📈 BankNifty Trend")
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(6, 3))
         ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='blue')
         ax.legend()
         st.pyplot(fig)
     
     with col2:
         st.subheader(f"📈 {selected_stock} Trend")
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(6, 3))
         ax.plot(selected_stock_data.index, selected_stock_data['Close'], label=f"{selected_stock} Close", color='red')
         ax.legend()
         st.pyplot(fig)
     
-    st.subheader(f"📊 Prediction for {selected_stock}")
-    arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
-    arima_result = arima_model.fit()
-    future_dates = [selected_stock_data.index[-1] + timedelta(days=i) for i in range(1, 31)]
-    future_predictions = arima_result.forecast(steps=30)
-    pred_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
-    fig, ax = plt.subplots()
-    ax.plot(pred_df['Date'], pred_df['Predicted Price'], label=f"{selected_stock} Prediction", color='green')
-    ax.legend()
-    st.pyplot(fig)
-    
-    col3, col4 = st.columns(2)
     with col3:
+        st.subheader(f"📊 Prediction for {selected_stock}")
+        try:
+            arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
+            arima_result = arima_model.fit()
+            future_dates = [selected_stock_data.index[-1] + timedelta(days=i) for i in range(1, 31)]
+            future_predictions = arima_result.forecast(steps=30)
+            pred_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
+            fig, ax = plt.subplots(figsize=(6, 3))
+            ax.plot(pred_df['Date'], pred_df['Predicted Price'], label=f"{selected_stock} Prediction", color='green')
+            ax.legend()
+            st.pyplot(fig)
+        except Exception as e:
+            st.warning(f"⚠️ Prediction error: {e}")
+    
+    col4, col5 = st.columns(2)
+    with col4:
         st.subheader("📊 Profit vs Revenue Comparison")
         profit_revenue_data = pd.DataFrame({
             "Year": np.arange(2015, 2025),
             "Total Revenue": np.random.randint(50000, 150000, 10),
             "Net Profit": np.random.randint(5000, 30000, 10)
         })
-        fig, ax = plt.subplots()
-        profit_revenue_data.set_index("Year").plot(kind="bar", ax=ax)
+        fig, ax = plt.subplots(figsize=(6, 3))
+        profit_revenue_data.set_index("Year").plot(kind="bar", ax=ax, width=0.8)
         st.pyplot(fig)
     
-    with col4:
+    with col5:
         st.subheader("📊 Market Share of Banks")
         market_shares = {stock: np.random.rand() for stock in companies.keys()}
         total_share = sum(market_shares.values())
-        market_shares = {k: v / total_share for k, v in market_shares.items()}  # Normalize
-        fig, ax = plt.subplots()
+        market_shares = {k: v / total_share for k, v in market_shares.items()}
+        fig, ax = plt.subplots(figsize=(6, 3))
         ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
         ax.axis('equal')
         st.pyplot(fig)
@@ -119,8 +123,8 @@ if not bank_nifty_data.empty and not selected_stock_data.empty:
     if not all_stocks_data.empty:
         correlation_matrix = all_stocks_data.corr()
         st.subheader("📊 Correlation Heatmap between Bank Stocks and BankNifty")
-        fig, ax = plt.subplots(figsize=(8, 5))
-        sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
+        fig, ax = plt.subplots(figsize=(7, 4))
+        sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f", ax=ax, cbar_kws={'label': 'Correlation Coefficient'})
         st.pyplot(fig)
     
     st.success("🎯 Analysis Completed!")
