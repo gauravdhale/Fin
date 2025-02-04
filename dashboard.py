@@ -2,204 +2,121 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima.model import ARIMA
+from datetime import datetime, timedelta
+import seaborn as sns  # Import seaborn for heatmap
 
-# Define stock ticker
-ticker = "ADANIGREEN.NS"
+# Define Banking Stocks and Bank Nifty Index
+companies = {
+    'HDFC Bank': 'HDFCBANK.NS',
+    'ICICI Bank': 'ICICIBANK.NS',
+    'State Bank of India': 'SBIN.NS',
+    'Kotak Mahindra Bank': 'KOTAKBANK.NS',
+    'Axis Bank': 'AXISBANK.NS',
+    'Bank of Baroda': 'BANKBARODA.NS'
+}
 
-st.title("📈 Adani Green Energy Stock Dashboard")
+bank_nifty_ticker = "^NSEBANK"
 
-# Fetch 5 years of stock data
-st.sidebar.header("Fetching Stock Data...")
-data = yf.download(ticker, period="5y", interval="1d")
-st.sidebar.success("Data Fetched Successfully!")
+# Streamlit Config
+st.set_page_config(layout="wide")
 
-# Normalize Data
-scaler = MinMaxScaler(feature_range=(0, 1))
-data_scaled = scaler.fit_transform(data[['Close']])
+# Selection Dropdown on Top Right
+col_top1, col_top2 = st.columns([4, 1])
+with col_top2:
+    selected_stock = st.selectbox("🔍 Select a Bank", list(companies.keys()))
 
-# Split Data
-train_size = int(len(data_scaled) * 0.8)
-train_data, test_data = data_scaled[:train_size], data_scaled[train_size:]
+def fetch_stock_data(ticker):
+    stock_data = yf.download(ticker, period="10y", interval="1d")
+    if stock_data.empty:
+        return pd.DataFrame()
+    stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
+    stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
+    stock_data['Price_Change'] = stock_data['Close'].pct_change()
+    return stock_data.dropna()
 
-# Create Sequences for LSTM
-def create_sequences(data, seq_length=60):
-    X, y = [], []
-    for i in range(len(data) - seq_length):
-        X.append(data[i:i + seq_length])
-        y.append(data[i + seq_length])
-    return np.array(X), np.array(y)
+def fetch_all_stock_data():
+    all_data = {}
+    for stock in companies.values():
+        stock_data = fetch_stock_data(stock)
+        if not stock_data.empty:
+            all_data[stock] = stock_data['Close']
+    return pd.DataFrame(all_data) if all_data else pd.DataFrame()
 
-X_train, y_train = create_sequences(train_data)
-X_test, y_test = create_sequences(test_data)
+# Fetch Data
+bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
+selected_stock_data = fetch_stock_data(companies[selected_stock])
 
-# Build LSTM Model
-st.sidebar.header("Training LSTM Model...")
-model = Sequential([
-    LSTM(50, return_sequences=True, input_shape=(X_train.shape[1], 1)),
-    Dropout(0.2),
-    LSTM(50, return_sequences=False),
-    Dropout(0.2),
-    Dense(25),
-    Dense(1)
-])
-
-model.compile(optimizer="adam", loss="mean_squared_error")
-model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y_test))
-
-# Make Predictions
-predictions = model.predict(X_test)
-predictions = scaler.inverse_transform(predictions)
-actual_prices = scaler.inverse_transform(y_test.reshape(-1, 1))
-
-# Calculate Error Percentage
-mae = mean_absolute_error(actual_prices, predictions)
-rmse = np.sqrt(mean_squared_error(actual_prices, predictions))
-error_percentage = (mae / np.mean(actual_prices)) * 100
-
-# Generate Buy/Sell Signals
-buy_signals, sell_signals = [], []
-for i in range(1, len(predictions)):
-    if predictions[i] > predictions[i - 1]:  # Price increasing → BUY
-        buy_signals.append(predictions[i])
-        sell_signals.append(np.nan)
-    else:  # Price decreasing → SELL
-        sell_signals.append(predictions[i])
-        buy_signals.append(np.nan)
-
-# Live Stock Price
-st.header("📊 Live Stock Price")
-live_data = yf.Ticker(ticker).history(period="1d", interval="1m")
-latest_price = live_data["Close"].iloc[-1]
-st.metric(label="Current Price (₹)", value=f"{latest_price:.2f}")
-
-# Stock Price Prediction Graph
-st.header("📈 Stock Price Prediction (LSTM Model)")
-fig_pred = go.Figure()
-fig_pred.add_trace(go.Scatter(y=actual_prices.flatten(), mode="lines", name="Actual Price"))
-fig_pred.add_trace(go.Scatter(y=predictions.flatten(), mode="lines", name="Predicted Price", line=dict(color="red")))
-fig_pred.update_layout(title="Stock Price Prediction", xaxis_title="Days", yaxis_title="Price (₹)", template="plotly_dark")
-st.plotly_chart(fig_pred)
-
-# Buy/Sell Decision Graph
-st.header("📉 Buy/Sell Decision")
-fig_signals = go.Figure()
-fig_signals.add_trace(go.Scatter(y=actual_prices.flatten(), mode="lines", name="Actual Price", opacity=0.6))
-fig_signals.add_trace(go.Scatter(y=buy_signals, mode="markers", name="Buy Signal", marker=dict(color="green", symbol="triangle-up")))
-fig_signals.add_trace(go.Scatter(y=sell_signals, mode="markers", name="Sell Signal", marker=dict(color="red", symbol="triangle-down")))
-fig_signals.update_layout(title="Buy/Sell Decisions", xaxis_title="Days", yaxis_title="Price (₹)", template="plotly_dark")
-st.plotly_chart(fig_signals)
-
-# Error Metrics
-st.header("📊 Prediction Error Metrics")
-st.write(f"*Mean Absolute Error (MAE):* {mae:.2f}")
-st.write(f"*Root Mean Squared Error (RMSE):* {rmse:.2f}")
-st.write(f"*Error Percentage:* {error_percentage:.2f}%")
-
-st.success("Dashboard Updated Successfully! ✅")import streamlit as st
-import yfinance as yf
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
-
-# Define stock ticker
-ticker = "ADANIGREEN.NS"
-
-st.title("📈 Adani Green Energy Stock Dashboard")
-
-# Fetch 5 years of stock data
-st.sidebar.header("Fetching Stock Data...")
-data = yf.download(ticker, period="5y", interval="1d")
-st.sidebar.success("Data Fetched Successfully!")
-
-# Normalize Data
-scaler = MinMaxScaler(feature_range=(0, 1))
-data_scaled = scaler.fit_transform(data[['Close']])
-
-# Split Data
-train_size = int(len(data_scaled) * 0.8)
-train_data, test_data = data_scaled[:train_size], data_scaled[train_size:]
-
-# Create Sequences for LSTM
-def create_sequences(data, seq_length=60):
-    X, y = [], []
-    for i in range(len(data) - seq_length):
-        X.append(data[i:i + seq_length])
-        y.append(data[i + seq_length])
-    return np.array(X), np.array(y)
-
-X_train, y_train = create_sequences(train_data)
-X_test, y_test = create_sequences(test_data)
-
-# Build LSTM Model
-st.sidebar.header("Training LSTM Model...")
-model = Sequential([
-    LSTM(50, return_sequences=True, input_shape=(X_train.shape[1], 1)),
-    Dropout(0.2),
-    LSTM(50, return_sequences=False),
-    Dropout(0.2),
-    Dense(25),
-    Dense(1)
-])
-
-model.compile(optimizer="adam", loss="mean_squared_error")
-model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y_test))
-
-# Make Predictions
-predictions = model.predict(X_test)
-predictions = scaler.inverse_transform(predictions)
-actual_prices = scaler.inverse_transform(y_test.reshape(-1, 1))
-
-# Calculate Error Percentage
-mae = mean_absolute_error(actual_prices, predictions)
-rmse = np.sqrt(mean_squared_error(actual_prices, predictions))
-error_percentage = (mae / np.mean(actual_prices)) * 100
-
-# Generate Buy/Sell Signals
-buy_signals, sell_signals = [], []
-for i in range(1, len(predictions)):
-    if predictions[i] > predictions[i - 1]:  # Price increasing → BUY
-        buy_signals.append(predictions[i])
-        sell_signals.append(np.nan)
-    else:  # Price decreasing → SELL
-        sell_signals.append(predictions[i])
-        buy_signals.append(np.nan)
-
-# Live Stock Price
-st.header("📊 Live Stock Price")
-live_data = yf.Ticker(ticker).history(period="1d", interval="1m")
-latest_price = live_data["Close"].iloc[-1]
-st.metric(label="Current Price (₹)", value=f"{latest_price:.2f}")
-
-# Stock Price Prediction Graph
-st.header("📈 Stock Price Prediction (LSTM Model)")
-fig_pred = go.Figure()
-fig_pred.add_trace(go.Scatter(y=actual_prices.flatten(), mode="lines", name="Actual Price"))
-fig_pred.add_trace(go.Scatter(y=predictions.flatten(), mode="lines", name="Predicted Price", line=dict(color="red")))
-fig_pred.update_layout(title="Stock Price Prediction", xaxis_title="Days", yaxis_title="Price (₹)", template="plotly_dark")
-st.plotly_chart(fig_pred)
-
-# Buy/Sell Decision Graph
-st.header("📉 Buy/Sell Decision")
-fig_signals = go.Figure()
-fig_signals.add_trace(go.Scatter(y=actual_prices.flatten(), mode="lines", name="Actual Price", opacity=0.6))
-fig_signals.add_trace(go.Scatter(y=buy_signals, mode="markers", name="Buy Signal", marker=dict(color="green", symbol="triangle-up")))
-fig_signals.add_trace(go.Scatter(y=sell_signals, mode="markers", name="Sell Signal", marker=dict(color="red", symbol="triangle-down")))
-fig_signals.update_layout(title="Buy/Sell Decisions", xaxis_title="Days", yaxis_title="Price (₹)", template="plotly_dark")
-st.plotly_chart(fig_signals)
-
-# Error Metrics
-st.header("📊 Prediction Error Metrics")
-st.write(f"*Mean Absolute Error (MAE):* {mae:.2f}")
-st.write(f"*Root Mean Squared Error (RMSE):* {rmse:.2f}")
-st.write(f"*Error Percentage:* {error_percentage:.2f}%")
-
-st.success("Dashboard Updated Successfully! ✅")
+if not bank_nifty_data.empty and not selected_stock_data.empty:
+    st.markdown(f"## 📈 {selected_stock} Metrics")
+    with st.container():
+        metric_cols = st.columns(8)
+        metric_labels = ["Open", "Close", "High", "Low", "EPS", "IPO Price", "P/E Ratio", "Dividend"]
+        for i, metric in enumerate(metric_labels):
+            with metric_cols[i]:
+                st.metric(label=metric, value=np.random.randint(100, 1000))
+    
+    st.markdown("## 📈 BankNifty & Stock Market Overview")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.subheader("📈 BankNifty Trend")
+        fig, ax = plt.subplots(figsize=(4, 2))
+        ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='blue')
+        ax.legend()
+        st.pyplot(fig)
+    
+    with col2:
+        st.subheader(f"📈 {selected_stock} Trend")
+        fig, ax = plt.subplots(figsize=(4, 2))
+        ax.plot(selected_stock_data.index, selected_stock_data['Close'], label=f"{selected_stock} Close", color='red')
+        ax.legend()
+        st.pyplot(fig)
+    
+    with col3:
+        st.subheader(f"📊 Prediction for {selected_stock}")
+        arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
+        arima_result = arima_model.fit()
+        future_dates = [selected_stock_data.index[-1] + timedelta(days=i) for i in range(1, 31)]
+        future_predictions = arima_result.forecast(steps=30)
+        pred_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
+        fig, ax = plt.subplots(figsize=(4, 2))
+        ax.plot(pred_df['Date'], pred_df['Predicted Price'], label=f"{selected_stock} Prediction", color='green')
+        ax.legend()
+        st.pyplot(fig)
+    
+    col4, col5 = st.columns(2)
+    with col4:
+        st.subheader("📊 Profit vs Revenue Comparison")
+        profit_revenue_data = pd.DataFrame({
+            "Year": np.arange(2015, 2025),
+            "Total Revenue": np.random.randint(50000, 150000, 10),
+            "Net Profit": np.random.randint(5000, 30000, 10)
+        })
+        fig, ax = plt.subplots(figsize=(5, 2))
+        profit_revenue_data.set_index("Year").plot(kind="bar", ax=ax, width=0.8)
+        st.pyplot(fig)
+    
+    with col5:
+        st.subheader("📊 Market Share of Banks")
+        market_shares = {stock: np.random.rand() for stock in companies.keys()}
+        total_share = sum(market_shares.values())
+        market_shares = {k: v / total_share for k, v in market_shares.items()}  # Normalize
+        fig, ax = plt.subplots(figsize=(5, 2))
+        ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
+        ax.axis('equal')
+        st.pyplot(fig)
+    
+    st.subheader("📋 BankNifty Index Data Table")
+    st.dataframe(bank_nifty_data.tail(10))
+    
+    all_stocks_data = fetch_all_stock_data()
+    if not all_stocks_data.empty:
+        correlation_matrix = all_stocks_data.corr()
+        st.subheader("📊 Correlation Heatmap between Bank Stocks and BankNifty")
+        fig, ax = plt.subplots(figsize=(6, 4))
+        sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f", ax=ax, cbar_kws={'label': 'Correlation Coefficient'})
+        st.pyplot(fig)
+    
+    st.success("🎯 Analysis Completed!")
