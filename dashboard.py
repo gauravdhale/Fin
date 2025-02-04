@@ -32,7 +32,9 @@ with col_top2:
 def fetch_stock_data(ticker):
     stock_data = yf.download(ticker, period="5y", interval="1d")
     if stock_data.empty:
+        st.warning(f"⚠️ No data available for {ticker}")
         return pd.DataFrame()
+    
     stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
     stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
     stock_data['Price_Change'] = stock_data['Close'].pct_change()
@@ -54,19 +56,31 @@ all_stocks_data = fetch_all_stock_data()
 
 # Display Data & Charts if Data Exists
 if not bank_nifty_data.empty and not selected_stock_data.empty and not all_stocks_data.empty:
-    
+
     # Key Financial Metrics
     st.markdown(f"## 📈 {selected_stock} Metrics")
+    stock_info = yf.Ticker(companies[selected_stock]).info
+    
     with st.container():
-        metric_cols = st.columns(8)
-        metric_labels = ["Open", "Close", "High", "Low", "EPS", "IPO Price", "P/E Ratio", "Dividend"]
-        for i, metric in enumerate(metric_labels):
-            with metric_cols[i]:
-                st.metric(label=metric, value=np.random.randint(100, 1000))
+        metric_cols = st.columns(4)
+        metrics = {
+            "Open": stock_info.get("open", "N/A"),
+            "Close": stock_info.get("previousClose", "N/A"),
+            "High": stock_info.get("dayHigh", "N/A"),
+            "Low": stock_info.get("dayLow", "N/A"),
+            "EPS": stock_info.get("trailingEps", "N/A"),
+            "IPO Price": stock_info.get("regularMarketPreviousClose", "N/A"),
+            "P/E Ratio": stock_info.get("trailingPE", "N/A"),
+            "Dividend": stock_info.get("dividendYield", "N/A"),
+        }
+        
+        for i, (label, value) in enumerate(metrics.items()):
+            with metric_cols[i % 4]:  # Distribute across 4 columns
+                st.metric(label=label, value=value)
 
     # Bank Nifty & Stock Overview
     st.markdown("## 📈 BankNifty & Stock Market Overview")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         st.subheader("📈 BankNifty Trend & Prediction")
@@ -84,6 +98,16 @@ if not bank_nifty_data.empty and not selected_stock_data.empty and not all_stock
         ax.legend()
         st.pyplot(fig)
 
+    with col3:
+        st.subheader("📊 Market Share of Banks")
+        market_shares = {stock: np.random.rand() for stock in companies.keys()}
+        total_share = sum(market_shares.values())
+        market_shares = {k: v / total_share for k, v in market_shares.items()}  # Normalize
+        fig, ax = plt.subplots(figsize=(5, 3))
+        ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
+        ax.axis('equal')
+        st.pyplot(fig)
+
     # Profit vs Revenue Comparison
     st.subheader("📊 Profit vs Revenue Comparison")
     profit_revenue_data = pd.DataFrame({
@@ -95,28 +119,21 @@ if not bank_nifty_data.empty and not selected_stock_data.empty and not all_stock
     profit_revenue_data.set_index("Year").plot(kind="bar", ax=ax, width=0.8)
     st.pyplot(fig)
 
-    # Market Share of Banks
-    st.subheader("📊 Market Share of Banks")
-    market_shares = {stock: np.random.rand() for stock in companies.keys()}
-    total_share = sum(market_shares.values())
-    market_shares = {k: v / total_share for k, v in market_shares.items()}  # Normalize
-    fig, ax = plt.subplots(figsize=(5, 3))
-    ax.pie(market_shares.values(), labels=market_shares.keys(), autopct='%1.1f%%', startangle=90)
-    ax.axis('equal')
-    st.pyplot(fig)
-
     # Prediction for Selected Stock
     st.subheader(f"📊 Prediction for {selected_stock}")
-    arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
-    arima_result = arima_model.fit()
-    future_dates = [selected_stock_data.index[-1] + timedelta(days=i) for i in range(1, 31)]
-    future_predictions = arima_result.forecast(steps=30)
-    pred_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
-    fig, ax = plt.subplots(figsize=(6, 3))
-    ax.plot(pred_df['Date'], pred_df['Predicted Price'], label=f"{selected_stock} Prediction", color='green')
-    ax.set_title(f"Predicted Price for {selected_stock}")
-    ax.legend()
-    st.pyplot(fig)
+    try:
+        arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
+        arima_result = arima_model.fit()
+        future_dates = [selected_stock_data.index[-1] + timedelta(days=i) for i in range(1, 31)]
+        future_predictions = arima_result.forecast(steps=30)
+        pred_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
+        fig, ax = plt.subplots(figsize=(6, 3))
+        ax.plot(pred_df['Date'], pred_df['Predicted Price'], label=f"{selected_stock} Prediction", color='green')
+        ax.set_title(f"Predicted Price for {selected_stock}")
+        ax.legend()
+        st.pyplot(fig)
+    except Exception as e:
+        st.warning(f"Prediction failed: {e}")
 
     # ✅ **Heatmap of Stock Correlation**
     if not all_stocks_data.empty:
