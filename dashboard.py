@@ -93,14 +93,26 @@ with col3:
     st.subheader(f"Prediction for {selected_stock}")
     if not selected_stock_data.empty:
         try:
+            # Train ARIMA Model
             arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
             arima_result = arima_model.fit()
-            future_dates = [selected_stock_data.index[-1] + timedelta(days=i) for i in range(1, 31)]
-            future_predictions = arima_result.forecast(steps=30)
-            pred_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': future_predictions})
+
+            # Create future dates
+            future_steps = 30
+            future_dates = pd.date_range(start=selected_stock_data.index[-1], periods=future_steps + 1, freq='B')[1:]
             
-            fig, ax = plt.subplots(figsize=(5, 3))
-            ax.plot(pred_df['Date'], pred_df['Predicted Price'], label=f"{selected_stock} Prediction", color='green')
+            # Forecasting
+            forecast, stderr, conf_int = arima_result.forecast(steps=future_steps, alpha=0.05)
+
+            # Plot Prediction Graph
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.plot(selected_stock_data.index, selected_stock_data['Close'], label="Actual Close Price", color='blue')
+            ax.plot(future_dates, forecast, label="Predicted Price", color='green', linestyle="dashed")
+            ax.fill_between(future_dates, conf_int[:, 0], conf_int[:, 1], color='lightgreen', alpha=0.3, label="Confidence Interval")
+            
+            ax.set_title(f"{selected_stock} Price Prediction (Next {future_steps} Days)")
+            ax.set_xlabel("Date")
+            ax.set_ylabel("Stock Price (INR)")
             ax.legend()
             st.pyplot(fig)
         except Exception as e:
