@@ -3,9 +3,9 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime, timedelta
-import seaborn as sns  
 
 # Define Banking Stocks and Bank Nifty Index
 companies = {
@@ -18,13 +18,13 @@ companies = {
 }
 bank_nifty_ticker = "^NSEBANK"
 
-# Streamlit Config
-st.set_page_config(layout="wide")
+# Streamlit Configuration
+st.set_page_config(page_title="Banking Sector Dashboard", layout="wide")
+st.title("📊 Banking Sector Financial Dashboard")
+st.markdown("---")
 
 # Selection Dropdown
-col_top1, col_top2 = st.columns([4, 1])
-with col_top2:
-    selected_stock = st.selectbox("🔍 Select a Bank", list(companies.keys()))
+selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
 # Function to Fetch Stock Data
 def fetch_stock_data(ticker):
@@ -40,20 +40,12 @@ def fetch_stock_data(ticker):
         st.error(f"Error fetching data for {ticker}: {e}")
         return pd.DataFrame()
 
-# Function to Fetch All Bank Stocks Data
-def fetch_all_stock_data():
-    all_data = {}
-    for name, ticker in companies.items():
-        stock_data = fetch_stock_data(ticker)
-        if not stock_data.empty:
-            all_data[name] = stock_data['Close']
-    return pd.DataFrame(all_data) if all_data else pd.DataFrame()
-
 # Fetch Data
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
 selected_stock_data = fetch_stock_data(companies[selected_stock])
 
 # Display Metrics if Data is Available
+st.sidebar.header("📌 Key Metrics")
 if not selected_stock_data.empty:
     latest_data = selected_stock_data.iloc[-1]
     metric_values = {
@@ -66,24 +58,18 @@ if not selected_stock_data.empty:
         "P/E Ratio": np.random.uniform(5, 30),  
         "Dividend": np.random.uniform(1, 5)  
     }
+    for label, value in metric_values.items():
+        st.sidebar.metric(label=label, value=f"{value:.2f}" if isinstance(value, (int, float)) else value)
 else:
-    st.warning(f"No stock data available for {selected_stock}. Showing default values.")
-    metric_values = {key: "N/A" for key in ["Open", "Close", "High", "Low", "EPS", "IPO Price", "P/E Ratio", "Dividend"]}
-
-# Display Stock Metrics
-st.markdown(f"## 📈 {selected_stock} Metrics")
-metric_cols = st.columns(8)
-for i, (label, value) in enumerate(metric_values.items()):
-    with metric_cols[i]:
-        st.metric(label=label, value=f"{value:.2f}" if isinstance(value, (int, float)) else value)
+    st.sidebar.warning(f"No stock data available for {selected_stock}.")
 
 # BankNifty and Stock Overview
-st.markdown("## 📈 BankNifty & Stock Market Overview")
+st.header("📈 Market Overview")
 col1, col2, col3 = st.columns(3)
 
 # BankNifty Trend Graph
 with col1:
-    st.subheader("📈 BankNifty Trend")
+    st.subheader("BankNifty Trend")
     if not bank_nifty_data.empty:
         fig, ax = plt.subplots(figsize=(5, 3))
         ax.plot(bank_nifty_data.index, bank_nifty_data['Close'], label="BankNifty Close", color='blue')
@@ -94,7 +80,7 @@ with col1:
 
 # Selected Stock Trend Graph
 with col2:
-    st.subheader(f"📈 {selected_stock} Trend")
+    st.subheader(f"{selected_stock} Trend")
     if not selected_stock_data.empty:
         fig, ax = plt.subplots(figsize=(5, 3))
         ax.plot(selected_stock_data.index, selected_stock_data['Close'], label=f"{selected_stock} Close", color='red')
@@ -105,7 +91,7 @@ with col2:
 
 # Prediction using ARIMA Model
 with col3:
-    st.subheader(f"📊 Prediction for {selected_stock}")
+    st.subheader(f"Prediction for {selected_stock}")
     if not selected_stock_data.empty:
         try:
             arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
@@ -124,18 +110,18 @@ with col3:
         st.warning(f"No data available for prediction on {selected_stock}.")
 
 # Profit vs Revenue Comparison
+st.header("📊 Financial Analysis")
 col4, col5 = st.columns(2)
 with col4:
-    st.subheader("📊 Profit vs Revenue Comparison")
+    st.subheader("Profit vs Revenue Comparison")
     profit_revenue_data = pd.DataFrame({
         "Year": np.arange(2015, 2025),
         "Total Revenue": np.random.randint(50000, 150000, 10),
         "Net Profit": np.random.randint(5000, 30000, 10)
     })
-    fig, ax = plt.subplots(figsize=(5, 3))
+    fig, ax = plt.subplots(figsize=(6, 3))
     profit_revenue_data.set_index("Year").plot(kind="bar", ax=ax, width=0.8)
     st.pyplot(fig)
-
 
 # BankNifty Data Table
 st.subheader("📋 BankNifty Index Data Table")
@@ -145,10 +131,10 @@ else:
     st.warning("No BankNifty data available.")
 
 # Correlation Heatmap
-all_stocks_data = fetch_all_stock_data()
+st.subheader("📊 Correlation Heatmap")
+all_stocks_data = pd.DataFrame({name: fetch_stock_data(ticker)['Close'] for name, ticker in companies.items() if not fetch_stock_data(ticker).empty})
 if not all_stocks_data.empty:
     correlation_matrix = all_stocks_data.corr()
-    st.subheader("📊 Correlation Heatmap between Bank Stocks and BankNifty")
     fig, ax = plt.subplots(figsize=(6, 4))
     sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f", ax=ax, cbar_kws={'label': 'Correlation Coefficient'})
     st.pyplot(fig)
