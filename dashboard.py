@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from statsmodels.tsa.arima.model import ARIMA
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 # Define Banking Stocks and Bank Nifty Index
 companies = {
@@ -22,6 +22,23 @@ bank_nifty_ticker = "^NSEBANK"
 st.set_page_config(page_title="Banking Sector Dashboard", layout="wide")
 st.title("📊 Banking Sector Financial Dashboard")
 st.markdown("---")
+
+# Sidebar Styling
+st.markdown("""
+    <style>
+    [data-testid="stSidebar"] {
+        background-color: #f8f9fa;
+        padding: 10px;
+    }
+    [data-testid="stSidebar"] label {
+        font-size: 14px !important;
+    }
+    [data-testid="stSidebar"] div[data-testid="metric-container"] {
+        font-size: 12px !important;
+        margin: 2px 0;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Selection Dropdown
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
@@ -44,7 +61,7 @@ def fetch_stock_data(ticker):
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
 selected_stock_data = fetch_stock_data(companies[selected_stock])
 
-# Display Metrics if Data is Available
+# Sidebar Metrics
 st.sidebar.header("📌 Key Metrics")
 if not selected_stock_data.empty:
     latest_data = selected_stock_data.iloc[-1]
@@ -59,10 +76,11 @@ if not selected_stock_data.empty:
         "Dividend": np.random.uniform(1, 5)  
     }
     for label, value in metric_values.items():
-        st.sidebar.metric(label=label, value=f"{value:.2f}" if isinstance(value, (int, float)) else value)
+        st.sidebar.metric(label=label, value=f"{value:.2f}")
 else:
     st.sidebar.warning(f"No stock data available for {selected_stock}.") 
-# BankNifty and Stock Overview
+
+# Market Overview
 st.header("📈 Market Overview")
 col1, col2, col3 = st.columns(3)
 
@@ -121,13 +139,6 @@ with col4:
     fig, ax = plt.subplots(figsize=(6, 3))
     profit_revenue_data.set_index("Year").plot(kind="bar", ax=ax, width=0.8)
     st.pyplot(fig)
-
-# BankNifty Data Table
-st.subheader("📋 BankNifty Index Data Table")
-if not bank_nifty_data.empty:
-    st.dataframe(bank_nifty_data.tail(10))
-else:
-    st.warning("No BankNifty data available.")
 
 # Correlation Heatmap
 st.subheader("📊 Correlation Heatmap")
