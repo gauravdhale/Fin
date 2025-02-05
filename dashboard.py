@@ -106,13 +106,14 @@ with col3:
             forecast = forecast_result.predicted_mean
 
             # Plot Prediction Graph (Only Predicted Prices)
-            fig, ax = plt.subplots(figsize=(6, 4))
+            fig, ax = plt.subplots(figsize=(10, 5))
             ax.plot(future_dates, forecast, label="Predicted Price", color='green', linestyle="dashed", marker='o')
 
-            ax.set_title(f"{selected_stock} Predicted Price (Next {future_steps} Days)")
-            ax.set_xlabel("Date")
-            ax.set_ylabel("Stock Price (INR)")
-            ax.legend()
+            ax.set_title(f"{selected_stock} Predicted Price (Next {future_steps} Days)", fontsize=14)
+            ax.set_xlabel("Date", fontsize=12)
+            ax.set_ylabel("Stock Price (INR)", fontsize=12)
+            ax.grid(True, linestyle="--", alpha=0.6)  # Grid for better readability
+            ax.legend(fontsize=12)
             st.pyplot(fig)
         except Exception as e:
             st.error(f"Prediction failed: {e}")
