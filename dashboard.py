@@ -98,7 +98,7 @@ with col3:
             arima_result = arima_model.fit()
 
             # Define forecast steps
-            future_steps = 30
+            future_steps = 5
             future_dates = pd.date_range(start=selected_stock_data.index[-1], periods=future_steps + 1, freq='B')[1:]
 
             # Forecasting
