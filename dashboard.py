@@ -141,15 +141,6 @@ if not bank_nifty_data.empty:
 else:
     st.warning("No BankNifty data available.")
 
-# Correlation Heatmap
-st.subheader("📊 Correlation Heatmap")
-all_stocks_data = pd.DataFrame({name: fetch_stock_data(ticker)['Close'] for name, ticker in companies.items() if not fetch_stock_data(ticker).empty})
-if not all_stocks_data.empty:
-    correlation_matrix = all_stocks_data.corr()
-    fig, ax = plt.subplots(figsize=(6, 4))
-    sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f", ax=ax, cbar_kws={'label': 'Correlation Coefficient'})
-    st.pyplot(fig)
-else:
-    st.warning("Not enough data to generate a correlation heatmap.")
+
 
 st.success("🎯 Analysis Completed!")
