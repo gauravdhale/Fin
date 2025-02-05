@@ -97,19 +97,21 @@ with col3:
             arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
             arima_result = arima_model.fit()
 
-            # Create future dates
+            # Define forecast steps
             future_steps = 30
             future_dates = pd.date_range(start=selected_stock_data.index[-1], periods=future_steps + 1, freq='B')[1:]
-            
+
             # Forecasting
-            forecast, stderr, conf_int = arima_result.forecast(steps=future_steps, alpha=0.05)
+            forecast_result = arima_result.get_forecast(steps=future_steps)
+            forecast = forecast_result.predicted_mean
+            conf_int = forecast_result.conf_int()
 
             # Plot Prediction Graph
             fig, ax = plt.subplots(figsize=(6, 4))
             ax.plot(selected_stock_data.index, selected_stock_data['Close'], label="Actual Close Price", color='blue')
             ax.plot(future_dates, forecast, label="Predicted Price", color='green', linestyle="dashed")
-            ax.fill_between(future_dates, conf_int[:, 0], conf_int[:, 1], color='lightgreen', alpha=0.3, label="Confidence Interval")
-            
+            ax.fill_between(future_dates, conf_int.iloc[:, 0], conf_int.iloc[:, 1], color='lightgreen', alpha=0.3, label="Confidence Interval")
+
             ax.set_title(f"{selected_stock} Price Prediction (Next {future_steps} Days)")
             ax.set_xlabel("Date")
             ax.set_ylabel("Stock Price (INR)")
@@ -119,6 +121,7 @@ with col3:
             st.error(f"Prediction failed: {e}")
     else:
         st.warning(f"No data available for prediction on {selected_stock}.")
+
 
 # Profit vs Revenue Comparison
 st.header("📊 Financial Analysis")
