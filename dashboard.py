@@ -138,7 +138,7 @@ with col4:
     })
 
     # Plotting the graph with enhanced UI
-    fig, ax = plt.subplots(figsize=(8, 4))  # Bigger size for clear visibility
+    fig, ax = plt.subplots(figsize=(10, 5))  # Bigger size for clear visibility
     profit_revenue_data.set_index("Year").plot(kind="bar", ax=ax, width=0.8, colormap="coolwarm")
 
     ax.set_title("Total Revenue vs Net Profit", fontsize=14)
