@@ -1,4 +1,4 @@
-import streamlit as st
+mport streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -49,21 +49,19 @@ st.sidebar.header("📌 Key Metrics")
 if not selected_stock_data.empty:
     latest_data = selected_stock_data.iloc[-1]
     metric_values = {
-        "Open": latest_data.get("Open", np.nan),
-        "Close": latest_data.get("Close", np.nan),
-        "High": latest_data.get("High", np.nan),
-        "Low": latest_data.get("Low", np.nan),
+        "Open": latest_data["Open"],
+        "Close": latest_data["Close"],
+        "High": latest_data["High"],
+        "Low": latest_data["Low"],
         "EPS": np.random.uniform(10, 50),  
         "IPO Price": np.random.uniform(200, 1000),  
         "P/E Ratio": np.random.uniform(5, 30),  
         "Dividend": np.random.uniform(1, 5)  
     }
     for label, value in metric_values.items():
-        if not np.isnan(value):
-            st.sidebar.metric(label=label, value=f"{value:.2f}")
+        st.sidebar.metric(label=label, value=f"{value:.2f}" if isinstance(value, (int, float)) else value)
 else:
     st.sidebar.warning(f"No stock data available for {selected_stock}.") 
-
 # BankNifty and Stock Overview
 st.header("📈 Market Overview")
 col1, col2, col3 = st.columns(3)
