@@ -104,15 +104,12 @@ with col3:
             # Forecasting
             forecast_result = arima_result.get_forecast(steps=future_steps)
             forecast = forecast_result.predicted_mean
-            conf_int = forecast_result.conf_int()
 
-            # Plot Prediction Graph
+            # Plot Prediction Graph (Only Predicted Prices)
             fig, ax = plt.subplots(figsize=(6, 4))
-            ax.plot(selected_stock_data.index, selected_stock_data['Close'], label="Actual Close Price", color='blue')
-            ax.plot(future_dates, forecast, label="Predicted Price", color='green', linestyle="dashed")
-            ax.fill_between(future_dates, conf_int.iloc[:, 0], conf_int.iloc[:, 1], color='lightgreen', alpha=0.3, label="Confidence Interval")
+            ax.plot(future_dates, forecast, label="Predicted Price", color='green', linestyle="dashed", marker='o')
 
-            ax.set_title(f"{selected_stock} Price Prediction (Next {future_steps} Days)")
+            ax.set_title(f"{selected_stock} Predicted Price (Next {future_steps} Days)")
             ax.set_xlabel("Date")
             ax.set_ylabel("Stock Price (INR)")
             ax.legend()
@@ -121,7 +118,6 @@ with col3:
             st.error(f"Prediction failed: {e}")
     else:
         st.warning(f"No data available for prediction on {selected_stock}.")
-
 
 # Profit vs Revenue Comparison
 st.header("📊 Financial Analysis")
