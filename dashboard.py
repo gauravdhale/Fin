@@ -44,13 +44,8 @@ def fetch_stock_data(ticker):
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
 selected_stock_data = fetch_stock_data(companies[selected_stock])
 
-# Sidebar Header with Custom Styling
-st.sidebar.markdown(
-    "<h3 style='text-align: center; color: #4CAF50;'>📌 Key Metrics</h3>",
-    unsafe_allow_html=True,
-)
-
 # Display Metrics if Data is Available
+st.sidebar.header("📌 Key Metrics")
 if not selected_stock_data.empty:
     latest_data = selected_stock_data.iloc[-1]
     metric_values = {
@@ -58,30 +53,15 @@ if not selected_stock_data.empty:
         "Close": latest_data["Close"],
         "High": latest_data["High"],
         "Low": latest_data["Low"],
-        "EPS": np.random.uniform(10, 50),
-        "IPO Price": np.random.uniform(200, 1000),
-        "P/E Ratio": np.random.uniform(5, 30),
-        "Dividend": np.random.uniform(1, 5),
+        "EPS": np.random.uniform(10, 50),  
+        "IPO Price": np.random.uniform(200, 1000),  
+        "P/E Ratio": np.random.uniform(5, 30),  
+        "Dividend": np.random.uniform(1, 5)  
     }
-
-    st.sidebar.markdown("<hr>", unsafe_allow_html=True)
-
-    # Custom Styling for Metrics
     for label, value in metric_values.items():
-        st.sidebar.markdown(
-            f"""
-            <div style="background-color: #f8f9fa; padding: 8px; margin: 5px 0; border-radius: 8px; box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);">
-                <p style="font-size: 12px; font-weight: bold; margin: 0; color: #333;">{label}</p>
-                <p style="font-size: 14px; font-weight: bold; margin: 0; color: #007bff;">{value:.2f}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.sidebar.markdown("<hr>", unsafe_allow_html=True)
+        st.sidebar.metric(label=label, value=f"{value:.2f}" if isinstance(value, (int, float)) else value)
 else:
-    st.sidebar.warning(f"No stock data available for {selected_stock}.")
-
+    st.sidebar.warning(f"No stock data available for {selected_stock}.") 
 # BankNifty and Stock Overview
 st.header("📈 Market Overview")
 col1, col2, col3 = st.columns(3)
