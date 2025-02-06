@@ -176,9 +176,12 @@ if filtered_data:
     try:
         # Ensure all values are in list/series format
         filtered_data = {k: [v] if isinstance(v, (int, float)) else v for k, v in filtered_data.items()}
+        print("🔍 Debugging filtered_data structure:")
+        for key, value in filtered_data.items():
+            print(f"Key: {key}, Type: {type(value)}, Value: {value}")
 
         # Create the DataFrame
-        stock_prices = pd.DataFrame(filtered_data)
+        stock_prices = pd.DataFrame(filtered_data, index=[0])
 
         if stock_prices.empty:
             st.warning("Stock data is empty after filtering.")
