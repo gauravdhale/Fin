@@ -159,28 +159,36 @@ with col5:
 with col6:
     st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
 
-   # Fetch Data for all companies
+# Fetch Data for all companies
 data = {name: fetch_stock_data(ticker) for name, ticker in companies.items()}
+
+# Debug: Print the structure of data
+for key, value in data.items():
+    if value is None or value.empty:
+        print(f"⚠️ Warning: No data for {key}")
+    else:
+        print(f"✅ {key} data loaded: {value.shape}")
 
 # Remove None or empty values
 filtered_data = {k: v for k, v in data.items() if v is not None and not v.empty}
 
 if filtered_data:
-    # Create DataFrame
-    stock_prices = pd.DataFrame(filtered_data).dropna()
+    try:
+        # Convert Data to DataFrame
+        stock_prices = pd.DataFrame({k: v['Close'] for k, v in filtered_data.items()}).dropna()
 
-    # Compute Correlation Matrix
-    correlation_matrix = stock_prices.corr()
+        # Compute Correlation Matrix
+        correlation_matrix = stock_prices.corr()
 
-    # Plot Heatmap
-    st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
-    st.pyplot(fig)
+        # Plot Heatmap
+        st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
+        st.pyplot(fig)
+    except Exception as e:
+        st.error(f"Error processing stock data: {e}")
 else:
     st.warning("No valid stock data available to generate heatmap.")
-
-
 
 
 
