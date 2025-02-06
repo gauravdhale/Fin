@@ -174,22 +174,26 @@ filtered_data = {k: v for k, v in data.items() if v is not None and not v.empty}
 
 if filtered_data:
     try:
-        # Convert Data to DataFrame
-        stock_prices = pd.DataFrame({k: v['Close'] for k, v in filtered_data.items()}).dropna()
+        # Ensure data is in proper format
+        stock_prices = pd.DataFrame({k: v['Close'] for k, v in filtered_data.items() if isinstance(v, pd.DataFrame)})
 
-        # Compute Correlation Matrix
-        correlation_matrix = stock_prices.corr()
+        if stock_prices.empty:
+            st.warning("Stock data is empty after filtering.")
+        else:
+            stock_prices.dropna(inplace=True)
 
-        # Plot Heatmap
-        st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
-        fig, ax = plt.subplots(figsize=(8, 6))
-        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
-        st.pyplot(fig)
+            # Compute Correlation Matrix
+            correlation_matrix = stock_prices.corr()
+
+            # Plot Heatmap
+            st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
+            fig, ax = plt.subplots(figsize=(8, 6))
+            sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
+            st.pyplot(fig)
     except Exception as e:
         st.error(f"Error processing stock data: {e}")
 else:
     st.warning("No valid stock data available to generate heatmap.")
-
 
 
 
