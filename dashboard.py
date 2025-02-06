@@ -158,7 +158,7 @@ with col5:
 
 # 🔹 Heatmap for Stock Correlations
 with col6:
-     st.subheader("📊 Stock Correlation Heatmap")
+    st.subheader("📊 Stock Correlation Heatmap")
     
     if not selected_stock_data.empty:
         # Compute correlation matrix
@@ -173,8 +173,6 @@ with col6:
     else:
         st.warning(f"No data available to generate heatmap for {selected_stock}.")
 
-
-   
 
 
 
