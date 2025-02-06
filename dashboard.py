@@ -174,14 +174,20 @@ filtered_data = {k: v for k, v in data.items() if v is not None and not v.empty}
 
 if filtered_data:
     try:
-        # Ensure all values are in list/series format
-        filtered_data = {k: [v] if isinstance(v, (int, float)) else v for k, v in filtered_data.items()}
-        print("🔍 Debugging filtered_data structure:")
-        for key, value in filtered_data.items():
-            print(f"Key: {key}, Type: {type(value)}, Value: {value}")
+        # Ensure each stock's data is a pandas Series or DataFrame
+        aligned_data = {}
+        for name, stock_data in filtered_data.items():
+            if isinstance(stock_data, pd.DataFrame):
+                # If it's already a DataFrame, select the 'Close' price or any other relevant column
+                aligned_data[name] = stock_data['Close']
+            elif isinstance(stock_data, pd.Series):
+                aligned_data[name] = stock_data
+            else:
+                # If it's a single value (like float or int), wrap it in a series
+                aligned_data[name] = pd.Series(stock_data)
 
-        # Create the DataFrame
-        stock_prices = pd.DataFrame(filtered_data, index=[0])
+        # Create the DataFrame with aligned data
+        stock_prices = pd.DataFrame(aligned_data)
 
         if stock_prices.empty:
             st.warning("Stock data is empty after filtering.")
