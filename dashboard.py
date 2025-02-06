@@ -174,15 +174,18 @@ filtered_data = {k: v for k, v in data.items() if v is not None and not v.empty}
 
 if filtered_data:
     try:
-        # Ensure data is in proper format
-        stock_prices = pd.DataFrame({k: v['Close'] for k, v in filtered_data.items() if isinstance(v, pd.DataFrame)})
+        # Ensure all values are in list/series format
+        filtered_data = {k: [v] if isinstance(v, (int, float)) else v for k, v in filtered_data.items()}
+
+        # Create the DataFrame
+        stock_prices = pd.DataFrame(filtered_data)
 
         if stock_prices.empty:
             st.warning("Stock data is empty after filtering.")
         else:
             stock_prices.dropna(inplace=True)
 
-            # Compute Correlation Matrix
+            # Correlation Matrix
             correlation_matrix = stock_prices.corr()
 
             # Plot Heatmap
@@ -194,7 +197,6 @@ if filtered_data:
         st.error(f"Error processing stock data: {e}")
 else:
     st.warning("No valid stock data available to generate heatmap.")
-
 
 
 
