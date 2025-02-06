@@ -123,42 +123,56 @@ with col3:
 # Financial Analysis Section
 st.header("📊 Financial Analysis")
 
-# Create two columns
-col4, col5 = st.columns([2, 1])  # Adjust column width for better visibility
+# Create three columns for better layout
+col4, col5, col6 = st.columns([2, 1, 1])  # Adjusting width for better visibility
 
-# Profit vs Revenue Comparison Graph
+# 🔹 Profit vs Revenue Comparison Graph (Existing Code)
 with col4:
     st.subheader("📈 Profit vs Revenue Comparison")
     
-    # Generating mock financial data
     profit_revenue_data = pd.DataFrame({
         "Year": np.arange(2015, 2025),
         "Total Revenue": np.random.randint(50000, 150000, 10),
         "Net Profit": np.random.randint(5000, 30000, 10)
     })
 
-    # Plotting the graph with enhanced UI
-    fig, ax = plt.subplots(figsize=(5, 3))  # Bigger size for clear visibility
+    fig, ax = plt.subplots(figsize=(5, 3))
     profit_revenue_data.set_index("Year").plot(kind="bar", ax=ax, width=0.8, colormap="coolwarm")
 
     ax.set_title("Total Revenue vs Net Profit", fontsize=14)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Amount (INR in Lakhs)", fontsize=12)
-    ax.grid(axis='y', linestyle="--", alpha=0.5)  # Improve readability with grid
+    ax.grid(axis='y', linestyle="--", alpha=0.5)
     ax.legend(fontsize=12)
 
-    # Show the graph
     st.pyplot(fig)
 
-# BankNifty Index Data Table
+# 🔹 BankNifty Index Data Table (Existing Code)
 with col5:
     st.subheader("📋 BankNifty Index Data Table")
     
     if not bank_nifty_data.empty:
-        # Display last 10 rows in a styled table
         st.dataframe(bank_nifty_data.tail(10).style.format({"Close": "{:.2f}", "Open": "{:.2f}", "High": "{:.2f}", "Low": "{:.2f}"}))
     else:
         st.warning("No BankNifty data available.")
+
+# 🔹 Heatmap for Stock Correlations
+with col6:
+    st.subheader("📊 Stock Correlation Heatmap")
+    
+    if not selected_stock_data.empty:
+        # Compute correlation matrix
+        corr_matrix = selected_stock_data[['Open', 'High', 'Low', 'Close', 'Volume']].corr()
+        
+        # Plot heatmap
+        fig, ax = plt.subplots(figsize=(5, 3))
+        sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5, ax=ax)
+
+        ax.set_title(f"{selected_stock} Correlation Heatmap", fontsize=12)
+        st.pyplot(fig)
+    else:
+        st.warning(f"No data available to generate heatmap for {selected_stock}.")
+
 
 
 
