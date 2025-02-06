@@ -178,23 +178,20 @@ if filtered_data:
         aligned_data = {}
 
         for name, stock_data in filtered_data.items():
-            # Check if the data is a DataFrame and extract the 'Close' price if it is
             if isinstance(stock_data, pd.DataFrame):
+                # If it's a DataFrame, extract the 'Close' column (or any other relevant column)
                 if 'Close' in stock_data.columns:
                     aligned_data[name] = stock_data['Close']
                 else:
                     st.error(f"⚠️ 'Close' column missing in {name} data")
             elif isinstance(stock_data, pd.Series):
                 aligned_data[name] = stock_data
+            elif isinstance(stock_data, (int, float)):  # If scalar value
+                aligned_data[name] = pd.Series([stock_data], index=[0])  # Wrap in Series with index
             else:
-                # If it's a scalar value (int or float), wrap it in a series
-                aligned_data[name] = pd.Series([stock_data])
+                st.error(f"⚠️ Invalid data format for {name}")
 
-        # Ensure all columns (companies) have the same index for correlation calculation
-        # Get the intersection of all dates (to ensure the same timeframe for all companies)
-        aligned_data = {k: v for k, v in aligned_data.items() if v is not None}
-        
-        # If there's data for all companies, proceed
+        # Now ensure that the data is aligned
         if aligned_data:
             stock_prices = pd.DataFrame(aligned_data)
 
@@ -217,7 +214,6 @@ if filtered_data:
         st.error(f"Error processing stock data: {e}")
 else:
     st.warning("No valid stock data available to generate heatmap.")
-
 
 
 st.success("🎯 Analysis Completed!")
