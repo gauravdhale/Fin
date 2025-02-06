@@ -27,9 +27,9 @@ st.markdown("---")
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
 # Function to Fetch Stock Data
-def fetch_stock_data(ticker):
+def fetch_stock_data(ticker, period="5y"):
     try:
-        stock_data = yf.download(ticker, period="10y", interval="1d")
+        stock_data = yf.download(ticker, period=period, interval="1d")
         if stock_data.empty:
             return pd.DataFrame()
         stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
@@ -89,36 +89,37 @@ with col2:
         st.warning(f"No data available for {selected_stock}.")
 
 # Prediction using ARIMA Model
-with col3:
-    st.subheader(f"Prediction for {selected_stock}")
-    if not selected_stock_data.empty:
-        try:
-            # Train ARIMA Model
-            arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
-            arima_result = arima_model.fit()
+st.header(f"📈 {selected_stock} - Actual vs Predicted Price")
+if not selected_stock_data.empty:
+    try:
+        # Train ARIMA Model on 5 years of data
+        arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
+        arima_result = arima_model.fit()
 
-            # Define forecast steps
-            future_steps = 5
-            future_dates = pd.date_range(start=selected_stock_data.index[-1], periods=future_steps + 1, freq='B')[1:]
+        # Define forecast steps
+        future_steps = 5
+        future_dates = pd.date_range(start=selected_stock_data.index[-1], periods=future_steps + 1, freq='B')[1:]
 
-            # Forecasting
-            forecast_result = arima_result.get_forecast(steps=future_steps)
-            forecast = forecast_result.predicted_mean
+        # Forecasting
+        forecast_result = arima_result.get_forecast(steps=future_steps)
+        forecast = forecast_result.predicted_mean
 
-            # Plot Prediction Graph (Only Predicted Prices)
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(future_dates, forecast, label="Predicted Price", color='green', linestyle="dashed", marker='o')
+        # Plot Actual vs Predicted
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(selected_stock_data.index[-252:], selected_stock_data['Close'].iloc[-252:], label="Actual Price", color='blue')
+        ax.plot(future_dates, forecast, label="Predicted Price", color='red', linestyle="dashed", marker='o')
 
-            ax.set_title(f"{selected_stock} Predicted Price (Next {future_steps} Days)", fontsize=14)
-            ax.set_xlabel("Date", fontsize=12)
-            ax.set_ylabel("Stock Price (INR)", fontsize=12)
-            ax.grid(True, linestyle="--", alpha=0.6)  # Grid for better readability
-            ax.legend(fontsize=12)
-            st.pyplot(fig)
-        except Exception as e:
-            st.error(f"Prediction failed: {e}")
-    else:
-        st.warning(f"No data available for prediction on {selected_stock}.")
+        ax.set_title(f"{selected_stock} - Actual vs Predicted Price", fontsize=14)
+        ax.set_xlabel("Date", fontsize=12)
+        ax.set_ylabel("Stock Price (INR)", fontsize=12)
+        ax.legend()
+        ax.grid(True, linestyle="--", alpha=0.6)
+
+        st.pyplot(fig)
+    except Exception as e:
+        st.error(f"Prediction failed: {e}")
+else:
+    st.warning(f"No data available for prediction on {selected_stock}.")
 
 # Financial Analysis Section
 st.header("📊 Financial Analysis")
