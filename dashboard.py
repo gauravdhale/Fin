@@ -155,23 +155,25 @@ with col5:
         st.dataframe(bank_nifty_data.tail(10).style.format({"Close": "{:.2f}", "Open": "{:.2f}", "High": "{:.2f}", "Low": "{:.2f}"}))
     else:
         st.warning("No BankNifty data available.")
-
-# 🔹 Heatmap for Stock Correlations
+# 🔹 Heatmap for Nifty Bank Companies
 with col6:
-    st.subheader("📊 Stock Correlation Heatmap")
-    
-    if not selected_stock_data.empty:
-        # Compute correlation matrix
-        corr_matrix = selected_stock_data[['Open', 'High', 'Low', 'Close', 'Volume']].corr()
-        
-        # Plot heatmap
-        fig, ax = plt.subplots(figsize=(5, 3))
-        sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5, ax=ax)
+    st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
 
-        ax.set_title(f"{selected_stock} Correlation Heatmap", fontsize=12)
+    # Fetch Data for all companies
+    data = {name: fetch_stock_data(ticker) for name, ticker in companies.items()}
+    stock_prices = pd.DataFrame(data).dropna()
+
+    if not stock_prices.empty:
+        # Compute correlation matrix
+        correlation_matrix = stock_prices.corr()
+
+        # Plot heatmap
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
         st.pyplot(fig)
     else:
-        st.warning(f"No data available to generate heatmap for {selected_stock}.")
+        st.warning("Not enough data to generate heatmap.")
+
 
 
 
