@@ -158,7 +158,7 @@ with col5:
 
 # 🔹 Heatmap for Stock Correlations
 with col6:
-    .subheader("\U0001F5A8️ Stock Correlation Heatmap")
+    .subheader(" Stock Correlation Heatmap")
 if not stocks_df.empty:
     fig, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(stocks_df.corr(), annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5, ax=ax)
