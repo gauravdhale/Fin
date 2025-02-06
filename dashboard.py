@@ -176,32 +176,43 @@ if filtered_data:
     try:
         # Ensure each stock's data is a pandas Series or DataFrame
         aligned_data = {}
+
         for name, stock_data in filtered_data.items():
+            # Check if the data is a DataFrame and extract the 'Close' price if it is
             if isinstance(stock_data, pd.DataFrame):
-                # If it's already a DataFrame, select the 'Close' price or any other relevant column
-                aligned_data[name] = stock_data['Close']
+                if 'Close' in stock_data.columns:
+                    aligned_data[name] = stock_data['Close']
+                else:
+                    st.error(f"⚠️ 'Close' column missing in {name} data")
             elif isinstance(stock_data, pd.Series):
                 aligned_data[name] = stock_data
             else:
-                # If it's a single value (like float or int), wrap it in a series
-                aligned_data[name] = pd.Series(stock_data)
+                # If it's a scalar value (int or float), wrap it in a series
+                aligned_data[name] = pd.Series([stock_data])
 
-        # Create the DataFrame with aligned data
-        stock_prices = pd.DataFrame(aligned_data)
+        # Ensure all columns (companies) have the same index for correlation calculation
+        # Get the intersection of all dates (to ensure the same timeframe for all companies)
+        aligned_data = {k: v for k, v in aligned_data.items() if v is not None}
+        
+        # If there's data for all companies, proceed
+        if aligned_data:
+            stock_prices = pd.DataFrame(aligned_data)
 
-        if stock_prices.empty:
-            st.warning("Stock data is empty after filtering.")
+            if stock_prices.empty:
+                st.warning("Stock data is empty after filtering.")
+            else:
+                stock_prices.dropna(inplace=True)
+
+                # Correlation Matrix
+                correlation_matrix = stock_prices.corr()
+
+                # Plot Heatmap
+                st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
+                fig, ax = plt.subplots(figsize=(8, 6))
+                sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
+                st.pyplot(fig)
         else:
-            stock_prices.dropna(inplace=True)
-
-            # Correlation Matrix
-            correlation_matrix = stock_prices.corr()
-
-            # Plot Heatmap
-            st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
-            fig, ax = plt.subplots(figsize=(8, 6))
-            sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
-            st.pyplot(fig)
+            st.warning("No valid stock data available for the heatmap.")
     except Exception as e:
         st.error(f"Error processing stock data: {e}")
 else:
