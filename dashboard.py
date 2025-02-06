@@ -103,15 +103,17 @@ if not selected_stock_data.empty:
         # Forecasting
         forecast_result = arima_result.get_forecast(steps=future_steps)
         forecast = forecast_result.predicted_mean
-
-        # Create a combined DataFrame
-        forecast_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': forecast.values})
-        forecast_df.set_index('Date', inplace=True)
+        forecast_conf_int = forecast_result.conf_int()
+        
+        # Combine historical and predicted data
+        full_dates = selected_stock_data.index.union(future_dates)
+        full_prices = pd.concat([selected_stock_data['Close'], forecast])
         
         # Plot Actual vs Predicted
-        fig, ax = plt.subplots(figsize=(10, 5))
+        fig, ax = plt.subplots(figsize=(12, 6))
         ax.plot(selected_stock_data.index, selected_stock_data['Close'], label="Actual Price", color='blue')
-        ax.plot(forecast_df.index, forecast_df['Predicted Price'], label="Predicted Price", color='red', linestyle="dashed", marker='o')
+        ax.plot(future_dates, forecast, label="Predicted Price", color='red', linestyle="dashed", marker='o')
+        ax.fill_between(future_dates, forecast_conf_int.iloc[:, 0], forecast_conf_int.iloc[:, 1], color='pink', alpha=0.3)
         
         ax.set_title(f"{selected_stock} - Actual vs Predicted Price", fontsize=14)
         ax.set_xlabel("Date", fontsize=12)
@@ -124,7 +126,6 @@ if not selected_stock_data.empty:
         st.error(f"Prediction failed: {e}")
 else:
     st.warning(f"No data available for prediction on {selected_stock}.")
-
 
 # Financial Analysis Section
 st.header("📊 Financial Analysis")
