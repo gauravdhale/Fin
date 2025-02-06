@@ -4,8 +4,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from sklearn.preprocessing import MinMaxScaler
 from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime, timedelta
+
 
 # Define Banking Stocks and Bank Nifty Index
 companies = {
@@ -88,38 +93,65 @@ with col2:
     else:
         st.warning(f"No data available for {selected_stock}.")
 
-# Prediction using ARIMA Model
-with col3:
-    st.subheader(f"Prediction for {selected_stock}")
-    if not selected_stock_data.empty:
-        try:
-            # Train ARIMA Model
-            arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
-            arima_result = arima_model.fit()
+# Prepare Data for LSTM
+scaler = MinMaxScaler(feature_range=(0, 1))
+data_scaled = scaler.fit_transform(selected_stock_data[['Close']])
 
-            # Define forecast steps
-            future_steps = 5
-            future_dates = pd.date_range(start=selected_stock_data.index[-1], periods=future_steps + 1, freq='B')[1:]
+# Create sequences
+sequence_length = 60  # 60 days lookback
+X, y = [], []
+for i in range(len(data_scaled) - sequence_length):
+    X.append(data_scaled[i:i+sequence_length])
+    y.append(data_scaled[i+sequence_length])
+X, y = np.array(X), np.array(y)
 
-            # Forecasting
-            forecast_result = arima_result.get_forecast(steps=future_steps)
-            forecast = forecast_result.predicted_mean
+# Split into train and test sets
+train_size = int(len(X) * 0.8)
+X_train, X_test = X[:train_size], X[train_size:]
+y_train, y_test = y[:train_size], y[train_size:]
 
-            # Plot Prediction Graph (Only Predicted Prices)
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(future_dates, forecast, label="Predicted Price", color='green', linestyle="dashed", marker='o')
+# Define LSTM Model
+model = Sequential([
+    LSTM(units=50, return_sequences=True, input_shape=(sequence_length, 1)),
+    Dropout(0.2),
+    LSTM(units=50, return_sequences=False),
+    Dropout(0.2),
+    Dense(units=25),
+    Dense(units=1)
+])
 
-            ax.set_title(f"{selected_stock} Predicted Price (Next {future_steps} Days)", fontsize=14)
-            ax.set_xlabel("Date", fontsize=12)
-            ax.set_ylabel("Stock Price (INR)", fontsize=12)
-            ax.grid(True, linestyle="--", alpha=0.6)  # Grid for better readability
-            ax.legend(fontsize=12)
-            st.pyplot(fig)
-        except Exception as e:
-            st.error(f"Prediction failed: {e}")
-    else:
-        st.warning(f"No data available for prediction on {selected_stock}.")
+# Compile Model
+model.compile(optimizer='adam', loss='mean_squared_error')
 
+# Train Model
+model.fit(X_train, y_train, epochs=20, batch_size=16, validation_data=(X_test, y_test), verbose=1)
+
+# Make Predictions
+future_steps = 5
+future_inputs = data_scaled[-sequence_length:]
+predictions = []
+
+for _ in range(future_steps):
+    pred_input = np.expand_dims(future_inputs, axis=0)
+    pred_price = model.predict(pred_input)[0][0]
+    predictions.append(pred_price)
+    future_inputs = np.vstack((future_inputs[1:], [[pred_price]]))
+
+# Transform predictions back to original scale
+predictions = scaler.inverse_transform(np.array(predictions).reshape(-1, 1))
+
+# Generate future dates
+future_dates = pd.date_range(start=selected_stock_data.index[-1], periods=future_steps + 1, freq='B')[1:]
+
+# Plot Prediction Graph
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(future_dates, predictions, label="Predicted Price", color='green', linestyle="dashed", marker='o')
+ax.set_title(f"{selected_stock} Predicted Price (Next {future_steps} Days)", fontsize=14)
+ax.set_xlabel("Date", fontsize=12)
+ax.set_ylabel("Stock Price (INR)", fontsize=12)
+ax.grid(True, linestyle="--", alpha=0.6)
+ax.legend(fontsize=12)
+st.pyplot(fig)
 # Financial Analysis Section
 st.header("📊 Financial Analysis")
 
