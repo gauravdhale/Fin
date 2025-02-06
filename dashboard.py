@@ -106,7 +106,7 @@ if not selected_stock_data.empty:
 
         # Plot Actual vs Predicted
         fig, ax = plt.subplots(figsize=(10, 5))
-        ax.plot(selected_stock_data.index[-252:], selected_stock_data['Close'].iloc[-252:], label="Actual Price", color='blue')
+        ax.plot(selected_stock_data.index, selected_stock_data['Close'], label="Actual Price", color='blue')
         ax.plot(future_dates, forecast, label="Predicted Price", color='red', linestyle="dashed", marker='o')
 
         ax.set_title(f"{selected_stock} - Actual vs Predicted Price", fontsize=14)
