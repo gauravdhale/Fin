@@ -159,20 +159,27 @@ with col5:
 with col6:
     st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
 
-    # Fetch Data for all companies
-    data = {name: fetch_stock_data(ticker) for name, ticker in companies.items()}
-    stock_prices = pd.DataFrame(data).dropna()
+   # Fetch Data for all companies
+data = {name: fetch_stock_data(ticker) for name, ticker in companies.items()}
 
-    if not stock_prices.empty:
-        # Compute correlation matrix
-        correlation_matrix = stock_prices.corr()
+# Remove None or empty values
+filtered_data = {k: v for k, v in data.items() if v is not None and not v.empty}
 
-        # Plot heatmap
-        fig, ax = plt.subplots(figsize=(8, 6))
-        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
-        st.pyplot(fig)
-    else:
-        st.warning("Not enough data to generate heatmap.")
+if filtered_data:
+    # Create DataFrame
+    stock_prices = pd.DataFrame(filtered_data).dropna()
+
+    # Compute Correlation Matrix
+    correlation_matrix = stock_prices.corr()
+
+    # Plot Heatmap
+    st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
+    st.pyplot(fig)
+else:
+    st.warning("No valid stock data available to generate heatmap.")
+
 
 
 
