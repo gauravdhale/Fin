@@ -193,6 +193,11 @@ if filtered_data:
 
         # Now ensure that the data is aligned
         if aligned_data:
+            # If all data is scalar, wrap the data in a list and pass index
+            if all(isinstance(v, (int, float)) for v in aligned_data.values()):
+                aligned_data = {k: pd.Series([v], index=[0]) for k, v in aligned_data.items()}
+            
+            # Now create the DataFrame
             stock_prices = pd.DataFrame(aligned_data)
 
             if stock_prices.empty:
