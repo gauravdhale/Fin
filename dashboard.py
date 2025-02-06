@@ -158,13 +158,13 @@ with col5:
 
 # 🔹 Heatmap for Stock Correlations
 with col6:
-    .subheader(" Stock Correlation Heatmap")
-if not stocks_df.empty:
+    st.subheader(" Stock Correlation Heatmap")
+    if not stocks_df.empty:
     fig, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(stocks_df.corr(), annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5, ax=ax)
     ax.set_title("Correlation of Nifty Bank Stocks")
     st.pyplot(fig)
-else:
+    else:
     st.warning("No sufficient data available for correlation analysis.")
 
    
