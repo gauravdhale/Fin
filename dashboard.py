@@ -9,50 +9,7 @@ import seaborn as sns
 from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime, timedelta
 
-st.set_page_config(layout="wide")
 
-def load_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-# Load CSS
-load_css("styles.css")
-
-@st.cache_data
-def fetch_stock_data(ticker):
-    return yf.download(ticker, start="2020-01-01", end="2025-01-25")
-
-@st.cache_data
-def fetch_fundamental_data(ticker):
-    stock = yf.Ticker(ticker)
-    info = stock.info
-    financials = stock.financials
-    balance_sheet = stock.balance_sheet
-    cashflow = stock.cashflow
-    
-    dates = pd.date_range(start="2020-01-01", end="2025-01-25", freq='D')
-    fundamental_data = []
-    
-    for date in dates:
-        try:
-            total_revenue = financials.loc["Total Revenue"].get(date.strftime("%Y-%m-%d"), None) if "Total Revenue" in financials.index else None
-            debt_to_equity = (balance_sheet.loc["Total Debt"].get(date.strftime("%Y-%m-%d"), None) / balance_sheet.loc["Total Equity"].get(date.strftime("%Y-%m-%d"), None)) if ("Total Debt" in balance_sheet.index and "Total Equity" in balance_sheet.index) else None
-            net_cashflow = cashflow.loc["Total Cash From Operating Activities"].get(date.strftime("%Y-%m-%d"), None) if "Total Cash From Operating Activities" in cashflow.index else None
-        except Exception:
-            total_revenue, debt_to_equity, net_cashflow = None, None, None
-        
-        data = {
-            "Date": date,
-            "Market Cap": info.get("marketCap"),
-            "Enterprise Value": info.get("enterpriseValue"),
-            "P/E Ratio": info.get("trailingPE"),
-            "Debt-to-Equity Ratio": debt_to_equity,
-            "Total Revenue": total_revenue,
-            "Net Cash Flow": net_cashflow
-        }
-        fundamental_data.append(data)
-    
-    return pd.DataFrame(fundamental_data)
 
 # Define Banking Stocks and Bank Nifty Index
 companies = {
@@ -73,19 +30,42 @@ st.markdown("---")
 # Selection Dropdown
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
-# Function to Fetch Stock Data
+# Fetch Stock Data
 def fetch_stock_data(ticker, period="5y"):
-    try:
-        stock_data = yf.download(ticker, period=period, interval="1d")
-        if stock_data.empty:
-            return pd.DataFrame()
-        stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
-        stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
-        stock_data['Price_Change'] = stock_data['Close'].pct_change()
-        return stock_data.dropna()
-    except Exception as e:
-        st.error(f"Error fetching data for {ticker}: {e}")
-        return pd.DataFrame()
+    stock_data = yf.download(ticker, period=period, interval="1d")
+    stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
+    stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
+    return stock_data.dropna()
+
+bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
+selected_stock_data = fetch_stock_data(ticker)
+
+# Plot Actual vs Predicted Prices
+def plot_actual_vs_predicted(company_name, file_name):
+    data = pd.read_csv(file_name)
+    data['Date'] = pd.to_datetime(data['Date']).dt.tz_localize(None)
+    data.set_index('Date', inplace=True)
+    specific_date = pd.Timestamp('2025-01-24')
+    if specific_date in data.index:
+        actual_price = data.loc[specific_date, 'Actual Price']
+        predicted_price = data.loc[specific_date, 'Predicted Price']
+        error_percentage = abs((actual_price - predicted_price) / actual_price) * 100
+        error_text = f"Error percentage as on January 24, 2025: {error_percentage:.2f}%"
+    else:
+        error_text = "No data for January 24, 2025"
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data.index, y=data['Actual Price'], mode='lines', name='Actual Price', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=data.index, y=data['Predicted Price'], mode='lines', name='Predicted Price', line=dict(color='red', dash='dash')))
+    fig.update_layout(title=f'{company_name} - Actual vs Predicted Prices', xaxis_title='Date', yaxis_title='Price', hovermode='x unified')
+    st.plotly_chart(fig)
+    st.write(error_text)
+
+# Display Graph
+st.subheader(f"{ticker_name} - Actual vs Predicted Prices")
+file_name = f"{ticker}.csv"  # Assume file name follows the ticker name pattern
+plot_actual_vs_predicted(ticker_name, file_name)
+
 
 # Fetch Data
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
