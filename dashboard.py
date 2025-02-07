@@ -221,4 +221,5 @@ else:
 def load_data(file_name):
     url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{BRANCH}/{file_name}"
     try:
-        df =
+        df = pd.read_csv(url)
+        df.columns = df.columns.str
