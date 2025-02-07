@@ -50,7 +50,7 @@ if not data.empty:
     fig, ax = plt.subplots(figsize=(12, 6))
 
     ax.plot(data["Date"], data["Open"], label="Actual Open", color="blue", linestyle="-")
-    ax.plot(data["Date"], data["Predicted_Open"], label="Predicted Open", color="red", linestyle="dashed", marker="o")
+    ax.plot(data["Date"], data["Predicted_Open"], label="Predicted Open", color="green", linestyle="-")
 
     ax.set_title(f"{selected_file.split('.')[0]} - Open Price Prediction", fontsize=14)
     ax.set_xlabel("Date", fontsize=12)
