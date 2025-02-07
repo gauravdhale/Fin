@@ -36,7 +36,13 @@ def load_data(file_name):
     try:
         df = pd.read_csv(url)
 
-        # ✅ Fix Date Format: Define "%d-%m-%Y"
+        # ✅ Print Columns for Debugging
+        st.write("🔍 Columns in CSV:", df.columns.tolist())
+
+        # ✅ Fix Column Names (Remove Spaces)
+        df.columns = df.columns.str.strip()
+
+        # ✅ Fix Date Format
         df["Date"] = pd.to_datetime(df["Date"], format="%d-%m-%Y", dayfirst=True, errors="coerce")
 
         df.set_index("Date", inplace=True)
@@ -52,6 +58,14 @@ data = load_data(selected_file)
 def plot_actual_vs_predicted(data, company_name):
     if data.empty:
         st.warning(f"No data available for {company_name}.")
+        return
+
+    # ✅ Check for Required Columns
+    required_columns = ["Actual Price", "Predicted Price"]
+    missing_columns = [col for col in required_columns if col not in data.columns]
+
+    if missing_columns:
+        st.error(f"⚠ Missing columns in CSV: {missing_columns}")
         return
     
     # 🔹 Find Error Percentage on Specific Date
