@@ -1,7 +1,13 @@
 import streamlit as st
+import yfinance as yf
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.arima.model import ARIMA
 import plotly.graph_objects as go
 import requests
+from datetime import datetime, timedelta
 
 # 🔹 GitHub Repository Details
 GITHUB_REPO = "gauravdhale/Fin"
@@ -47,57 +53,23 @@ def load_data(file_name):
 # 🔹 Load Selected Data
 data = load_data(selected_file)
 
-# 🔹 Function to Plot Actual vs Predicted Prices
+# Function to Plot Actual vs Predicted Prices
 def plot_actual_vs_predicted(data, company_name):
     if data.empty:
         st.warning(f"No data available for {company_name}.")
         return
-
-    # ✅ Check for Required Columns
     required_columns = ["Actual Price", "Predicted Price"]
     missing_columns = [col for col in required_columns if col not in data.columns]
-
     if missing_columns:
         st.error(f"⚠ Missing columns in CSV: {missing_columns}")
         return
-    
-    # 🔹 Find Error Percentage on Specific Date
-    specific_date = pd.Timestamp("2025-01-24")
-    if specific_date in data.index:
-        actual_price = data.loc[specific_date, "Actual Price"]
-        predicted_price = data.loc[specific_date, "Predicted Price"]
-        error_percentage = abs((actual_price - predicted_price) / actual_price) * 100
-        error_text = f"📉 **Error Percentage on Jan 24, 2025:** {error_percentage:.2f}%"
-    else:
-        error_text = "⚠ No data for January 24, 2025"
-
-    # 🔹 Create Plotly Figure
     fig = go.Figure()
-    
-    fig.add_trace(go.Scatter(
-        x=data.index, y=data["Actual Price"], 
-        mode="lines", name="Actual Price", 
-        line=dict(color="blue")
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=data.index, y=data["Predicted Price"], 
-        mode="lines", name="Predicted Price", 
-        line=dict(color="red", dash="dash")
-    ))
-
-    # 🔹 Update Layout
-    fig.update_layout(
-        title=f"{company_name} - Actual vs Predicted Opening Prices",
-        xaxis_title="Date",
-        yaxis_title="Price",
-        hovermode="x unified"
-    )
-
-    # 🔹 Display in Streamlit
+    fig.add_trace(go.Scatter(x=data.index, y=data["Actual Price"], mode="lines", name="Actual Price", line=dict(color="blue")))
+    fig.add_trace(go.Scatter(x=data.index, y=data["Predicted Price"], mode="lines", name="Predicted Price", line=dict(color="red", dash="dash")))
+    fig.update_layout(title=f"{company_name} - Actual vs Predicted Prices", xaxis_title="Date", yaxis_title="Price", hovermode="x unified")
     st.plotly_chart(fig)
-    st.write(error_text)
 
-# 🔹 Plot Data
+# Plot Data
 st.header(f"📈 Prediction vs Actual - {selected_file.split('.')[0]}")
 plot_actual_vs_predicted(data, selected_file.split('.')[0])
+
