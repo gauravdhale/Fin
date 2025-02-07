@@ -1,15 +1,11 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import plotly.graph_objects as go
-import requests
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime, timedelta
-
-
 
 # Define Banking Stocks and Bank Nifty Index
 companies = {
@@ -30,42 +26,19 @@ st.markdown("---")
 # Selection Dropdown
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
 
-# Fetch Stock Data
+# Function to Fetch Stock Data
 def fetch_stock_data(ticker, period="5y"):
-    stock_data = yf.download(ticker, period=period, interval="1d")
-    stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
-    stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
-    return stock_data.dropna()
-
-bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
-selected_stock_data = fetch_stock_data(ticker)
-
-# Plot Actual vs Predicted Prices
-def plot_actual_vs_predicted(company_name, file_name):
-    data = pd.read_csv(file_name)
-    data['Date'] = pd.to_datetime(data['Date']).dt.tz_localize(None)
-    data.set_index('Date', inplace=True)
-    specific_date = pd.Timestamp('2025-01-24')
-    if specific_date in data.index:
-        actual_price = data.loc[specific_date, 'Actual Price']
-        predicted_price = data.loc[specific_date, 'Predicted Price']
-        error_percentage = abs((actual_price - predicted_price) / actual_price) * 100
-        error_text = f"Error percentage as on January 24, 2025: {error_percentage:.2f}%"
-    else:
-        error_text = "No data for January 24, 2025"
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data.index, y=data['Actual Price'], mode='lines', name='Actual Price', line=dict(color='blue')))
-    fig.add_trace(go.Scatter(x=data.index, y=data['Predicted Price'], mode='lines', name='Predicted Price', line=dict(color='red', dash='dash')))
-    fig.update_layout(title=f'{company_name} - Actual vs Predicted Prices', xaxis_title='Date', yaxis_title='Price', hovermode='x unified')
-    st.plotly_chart(fig)
-    st.write(error_text)
-
-# Display Graph
-st.subheader(f"{ticker_name} - Actual vs Predicted Prices")
-file_name = f"{ticker}.csv"  # Assume file name follows the ticker name pattern
-plot_actual_vs_predicted(ticker_name, file_name)
-
+    try:
+        stock_data = yf.download(ticker, period=period, interval="1d")
+        if stock_data.empty:
+            return pd.DataFrame()
+        stock_data['MA_20'] = stock_data['Close'].rolling(window=20).mean()
+        stock_data['MA_50'] = stock_data['Close'].rolling(window=50).mean()
+        stock_data['Price_Change'] = stock_data['Close'].pct_change()
+        return stock_data.dropna()
+    except Exception as e:
+        st.error(f"Error fetching data for {ticker}: {e}")
+        return pd.DataFrame()
 
 # Fetch Data
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
@@ -115,50 +88,44 @@ with col2:
     else:
         st.warning(f"No data available for {selected_stock}.")
 
-def plot_actual_vs_predicted(company_name, file_name):
-    # Load the data
-    data = pd.read_csv(file_name)
-    
-    # Set the date as the index for plotting
-    data['Date'] = pd.to_datetime(data['Date']).dt.tz_localize(None)
-    data.set_index('Date', inplace=True)
-    
-    # Calculate the error percentage for January 24, 2025
-    specific_date = pd.Timestamp('2025-01-24')
-    if specific_date in data.index:
-        actual_price = data.loc[specific_date, 'Actual Price']
-        predicted_price = data.loc[specific_date, 'Predicted Price']
-        error_percentage = abs((actual_price - predicted_price) / actual_price) * 100
-        error_text = f"Error percentage as on January 24, 2025: {error_percentage:.2f}%"
-    else:
-        error_text = "No data for January 24, 2025"
-    
-    # Create the figure
-    fig = go.Figure()
-    
-    # Add actual price trace
-    fig.add_trace(go.Scatter(x=data.index, y=data['Actual Price'], mode='lines', name='Actual Price', line=dict(color='blue')))
-    
-    # Add predicted price trace
-    fig.add_trace(go.Scatter(x=data.index, y=data['Predicted Price'], mode='lines', name='Predicted Price', line=dict(color='red', dash='dash')))
-    
-    # Update layout with titles and labels
-    fig.update_layout(
-        title=f'{company_name} - Actual vs Predicted Opening Prices',
-        xaxis_title='Date',
-        yaxis_title='Price',
-        hovermode='x unified'
-    )
-    
-    # Update hover information
-    fig.update_traces(
-        hovertemplate='<b>Date</b>: %{x|%d/%m/%Y}<br><b>Actual Price</b>: %{y}<br><b>Predicted Price</b>: %{customdata:.2f}<extra></extra>',
-        customdata=data['Predicted Price']
-    )
-    
-    # Use Streamlit to display the plot and error percentage
-    st.plotly_chart(fig)
-    st.write(error_text)
+# Prediction using ARIMA Model
+st.header(f"📈 {selected_stock} - Actual vs Predicted Price")
+if not selected_stock_data.empty:
+    try:
+        # Train ARIMA Model on 5 years of data
+        arima_model = ARIMA(selected_stock_data['Close'], order=(5, 1, 0))
+        arima_result = arima_model.fit()
+
+        # Define forecast steps
+        future_steps = 5
+        future_dates = pd.date_range(start=selected_stock_data.index[-1], periods=future_steps + 1, freq='B')[1:]
+
+        # Forecasting
+        forecast_result = arima_result.get_forecast(steps=future_steps)
+        forecast = forecast_result.predicted_mean
+        forecast_conf_int = forecast_result.conf_int()
+        
+        # Combine historical and predicted data
+        full_dates = selected_stock_data.index.union(future_dates)
+        full_prices = pd.concat([selected_stock_data['Close'], forecast])
+        
+        # Plot Actual vs Predicted
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.plot(selected_stock_data.index, selected_stock_data['Close'], label="Actual Price", color='blue')
+        ax.plot(future_dates, forecast, label="Predicted Price", color='red', linestyle="dashed", marker='o')
+        ax.fill_between(future_dates, forecast_conf_int.iloc[:, 0], forecast_conf_int.iloc[:, 1], color='pink', alpha=0.3)
+        
+        ax.set_title(f"{selected_stock} - Actual vs Predicted Price", fontsize=14)
+        ax.set_xlabel("Date", fontsize=12)
+        ax.set_ylabel("Stock Price (INR)", fontsize=12)
+        ax.legend()
+        ax.grid(True, linestyle="--", alpha=0.6)
+
+        st.pyplot(fig)
+    except Exception as e:
+        st.error(f"Prediction failed: {e}")
+else:
+    st.warning(f"No data available for prediction on {selected_stock}.")
 
 # Financial Analysis Section
 st.header("📊 Financial Analysis")
