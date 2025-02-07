@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.graph_objects as go
+import requests
 from datetime import datetime, timedelta
 
 # Define Banking Stocks and Bank Nifty Index
@@ -17,13 +19,39 @@ companies = {
 }
 bank_nifty_ticker = "^NSEBANK"
 
+# GitHub Repository Details
+GITHUB_REPO = "gauravdhale/Fin"
+BRANCH = "main"
+
 # Streamlit Configuration
 st.set_page_config(page_title="Banking Sector Dashboard", layout="wide")
 st.title("📊 Banking Sector Financial Dashboard")
 st.markdown("---")
 
+# Function to get the list of CSV files from GitHub
+@st.cache_data
+def get_csv_files():
+    api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents"
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        files = [file["name"] for file in response.json() if file["name"].endswith(".csv")]
+        return files
+    else:
+        st.error("Error fetching file list from GitHub")
+        return []
+
+# Get List of CSV Files
+csv_files = get_csv_files()
+
 # Selection Dropdown
 selected_stock = st.sidebar.selectbox("🔍 Select a Bank", list(companies.keys()))
+
+# Dropdown to Select CSV File
+if csv_files:
+    selected_file = st.sidebar.selectbox("Select a Bank Stock", csv_files)
+else:
+    st.error("No CSV files found in GitHub repository.")
+    st.stop()
 
 # Function to Fetch Stock Data
 def fetch_stock_data(ticker, period="5y"):
@@ -43,6 +71,24 @@ def fetch_stock_data(ticker, period="5y"):
 bank_nifty_data = fetch_stock_data(bank_nifty_ticker)
 selected_stock_data = fetch_stock_data(companies[selected_stock])
 
+# Function to Read CSV File from GitHub
+@st.cache_data
+def load_data(file_name):
+    url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{BRANCH}/{file_name}"
+    try:
+        df = pd.read_csv(url)
+        df.columns = df.columns.str.strip()
+        df.rename(columns={"Open": "Actual Price", "Predicted_Open": "Predicted Price"}, inplace=True)
+        df["Date"] = pd.to_datetime(df["Date"], format="%d-%m-%Y", dayfirst=True, errors="coerce")
+        df.set_index("Date", inplace=True)
+        return df
+    except Exception as e:
+        st.error(f"Error reading {file_name}: {e}")
+        return pd.DataFrame()
+
+# Load Selected Data
+data = load_data(selected_file)
+
 # Display Metrics if Data is Available
 st.sidebar.header("📌 Key Metrics")
 if not selected_stock_data.empty:
@@ -60,7 +106,7 @@ if not selected_stock_data.empty:
     for label, value in metric_values.items():
         st.sidebar.metric(label=label, value=f"{value:.2f}" if isinstance(value, (int, float)) else value)
 else:
-    st.sidebar.warning(f"No stock data available for {selected_stock}.") 
+    st.sidebar.warning(f"No stock data available for {selected_stock}.")
 
 # BankNifty and Stock Overview
 st.header("📈 Market Overview")
@@ -88,6 +134,26 @@ with col2:
     else:
         st.warning(f"No data available for {selected_stock}.")
 
+# Plot Actual vs Predicted Prices
+st.header(f"📈 Prediction vs Actual - {selected_file.split('.')[0]}")
+def plot_actual_vs_predicted(data, company_name):
+    if data.empty:
+        st.warning(f"No data available for {company_name}.")
+        return
+    required_columns = ["Actual Price", "Predicted Price"]
+    missing_columns = [col for col in required_columns if col not in data.columns]
+    if missing_columns:
+        st.error(f"⚠ Missing columns in CSV: {missing_columns}")
+        return
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data.index, y=data["Actual Price"], mode="lines", name="Actual Price", line=dict(color="blue")))
+    fig.add_trace(go.Scatter(x=data.index, y=data["Predicted Price"], mode="lines", name="Predicted Price", line=dict(color="red", dash="dash")))
+    fig.update_layout(title=f"{company_name} - Actual vs Predicted Prices", xaxis_title="Date", yaxis_title="Price", hovermode="x unified")
+    st.plotly_chart(fig)
+
+# Plot Data
+plot_actual_vs_predicted(data, selected_file.split('.')[0])
+
 # Financial Analysis Section
 st.header("📊 Financial Analysis")
 
@@ -97,7 +163,7 @@ col4, col5, col6 = st.columns([2, 1, 1])  # Adjusting width for better visibilit
 # 🔹 Profit vs Revenue Comparison Graph (Existing Code)
 with col4:
     st.subheader("📈 Profit vs Revenue Comparison")
-    
+
     profit_revenue_data = pd.DataFrame({
         "Year": np.arange(2015, 2025),
         "Total Revenue": np.random.randint(50000, 150000, 10),
@@ -118,11 +184,12 @@ with col4:
 # 🔹 BankNifty Index Data Table (Existing Code)
 with col5:
     st.subheader("📋 BankNifty Index Data Table")
-    
+
     if not bank_nifty_data.empty:
         st.dataframe(bank_nifty_data.tail(10).style.format({"Close": "{:.2f}", "Open": "{:.2f}", "High": "{:.2f}", "Low": "{:.2f}"}))
     else:
         st.warning("No BankNifty data available.")
+
 # 🔹 Heatmap for Nifty Bank Companies
 with col6:
     st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
@@ -149,43 +216,4 @@ if filtered_data:
             if isinstance(stock_data, pd.DataFrame):
                 # If it's a DataFrame, extract the 'Close' column (or any other relevant column)
                 if 'Close' in stock_data.columns:
-                    aligned_data[name] = stock_data['Close']
-                else:
-                    st.error(f"⚠ 'Close' column missing in {name} data")
-            elif isinstance(stock_data, pd.Series):
-                aligned_data[name] = stock_data
-            elif isinstance(stock_data, (int, float)):  # If scalar value
-                aligned_data[name] = pd.Series([stock_data], index=[0])  # Wrap in Series with index
-            else:
-                st.error(f"⚠ Invalid data format for {name}")
-
-        # Now ensure that the data is aligned
-        if aligned_data:
-            # If all data is scalar, wrap the data in a list and pass index
-            if all(isinstance(v, (int, float)) for v in aligned_data.values()):
-                aligned_data = {k: pd.Series([v], index=[0]) for k, v in aligned_data.items()}
-            
-            # Now create the DataFrame
-            stock_prices = pd.DataFrame(aligned_data)
-
-            if stock_prices.empty:
-                st.warning("Stock data is empty after filtering.")
-            else:
-                stock_prices.dropna(inplace=True)
-
-                # Correlation Matrix
-                correlation_matrix = stock_prices.corr()
-
-                # Plot Heatmap
-                st.subheader("📊 Correlation Heatmap for Nifty Bank Companies")
-                fig, ax = plt.subplots(figsize=(8, 6))
-                sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5, ax=ax)
-                st.pyplot(fig)
-        else:
-            st.warning("No valid stock data available for the heatmap.")
-    except Exception as e:
-        st.error(f"Error processing stock data: {e}")
-else:
-    st.warning("No valid stock data available to generate heatmap.")
-
-st.success("🎯 Analysis Completed!")
+                    aligned_data[name] =
