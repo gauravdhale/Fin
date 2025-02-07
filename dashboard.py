@@ -199,27 +199,3 @@ BRANCH = "main"
 def get_csv_files():
     api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents"
     response = requests.get(api_url)
-    if response.status_code == 200:
-        files = [file["name"] for file in response.json() if file["name"].endswith(".csv")]
-        return files
-    else:
-        st.error("Error fetching file list from GitHub")
-        return []
-
-# Get List of CSV Files
-csv_files = get_csv_files()
-
-# Dropdown to Select CSV File
-if csv_files:
-    selected_file = st.sidebar.selectbox("Select a Bank Stock", csv_files)
-else:
-    st.error("No CSV files found in GitHub repository.")
-    st.stop()
-
-# Function to Read CSV File from GitHub
-@st.cache_data
-def load_data(file_name):
-    url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{BRANCH}/{file_name}"
-    try:
-        df = pd.read_csv(url)
-        df.columns = df.columns.str
