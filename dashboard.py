@@ -42,6 +42,10 @@ def load_data(file_name):
         # ✅ Fix Column Names (Remove Spaces)
         df.columns = df.columns.str.strip()
 
+        # ✅ Rename Columns for Compatibility
+        column_mapping = {"Open": "Actual Price", "Predicted_Open": "Predicted Price"}
+        df.rename(columns=column_mapping, inplace=True)
+
         # ✅ Fix Date Format
         df["Date"] = pd.to_datetime(df["Date"], format="%d-%m-%Y", dayfirst=True, errors="coerce")
 
