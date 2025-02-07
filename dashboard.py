@@ -29,27 +29,15 @@ else:
     st.error("No CSV files found in GitHub repository.")
     st.stop()
 
-# 🔹 Function to Read CSV File from GitHub
+# Function to Read CSV File from GitHub
 @st.cache_data
 def load_data(file_name):
     url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{BRANCH}/{file_name}"
     try:
         df = pd.read_csv(url)
-
-         # ✅ Print Columns for Debugging
-        st.write("🔍 Columns in CSV:", df.columns.tolist())
-
-        # ✅ Fix Column Names (Remove Spaces)
         df.columns = df.columns.str.strip()
-
-        # ✅ Rename Columns for Compatibility
-        column_mapping = {"Open": "Actual Price", "Predicted_Open": "Predicted Price"}
-        df.rename(columns=column_mapping, inplace=True)
-
-        # ✅ Fix Date Format
+        df.rename(columns={"Open": "Actual Price", "Predicted_Open": "Predicted Price"}, inplace=True)
         df["Date"] = pd.to_datetime(df["Date"], format="%d-%m-%Y", dayfirst=True, errors="coerce")
-
-
         df.set_index("Date", inplace=True)
         return df
     except Exception as e:
