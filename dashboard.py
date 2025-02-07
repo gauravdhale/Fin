@@ -1,27 +1,38 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import requests
 
 # 🔹 Correct Base URL (Modify Your GitHub Username, Repo, and Branch)
-BASE_URL = "https://raw.githubusercontent.com/gauravdhale/Fin/main/"
+GITHUB_REPO = "gauravdhale/Fin"
+BRANCH = "main"
 
-# 🔹 List of CSV files (Ensure these exist in your GitHub repository)
-csv_files = [
-    "HDFC.csv",
-    "ICICI.csv",
-    "SBI.csv",
-    "KOTAK.csv",
-    "AXISBANK.NS_predicted_data.csv",  # Ensure this is the correct filename
-    "BOB.csv"
-]
+# 🔹 Function to get the list of CSV files from GitHub
+@st.cache_data
+def get_csv_files():
+    api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents"
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        files = [file["name"] for file in response.json() if file["name"].endswith(".csv")]
+        return files
+    else:
+        st.error("Error fetching file list from GitHub")
+        return []
+
+# 🔹 Get List of CSV Files
+csv_files = get_csv_files()
 
 # 🔹 Dropdown to Select CSV File
-selected_file = st.sidebar.selectbox("Select a Bank Stock", csv_files)
+if csv_files:
+    selected_file = st.sidebar.selectbox("Select a Bank Stock", csv_files)
+else:
+    st.error("No CSV files found in GitHub repository.")
+    st.stop()
 
 # 🔹 Function to Read CSV File from GitHub
 @st.cache_data
 def load_data(file_name):
-    url = BASE_URL + file_name  # Dynamically append filename to the base URL
+    url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{BRANCH}/{file_name}"
     try:
         df = pd.read_csv(url, parse_dates=["Date"])
         return df
